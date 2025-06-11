@@ -69,11 +69,20 @@ public class Game {
     }
 
     private int loadTexture(String path) {
+        // Caminho absoluto para teste
+        String absolutePath = "src/main/resources/" + path;
+        java.io.File file = new java.io.File(absolutePath);
+        if (!file.exists()) {
+            throw new RuntimeException("Arquivo de textura não encontrado: " + absolutePath);
+        }
+
         IntBuffer width = BufferUtils.createIntBuffer(1);
         IntBuffer height = BufferUtils.createIntBuffer(1);
         IntBuffer channels = BufferUtils.createIntBuffer(1);
-        ByteBuffer image = stbi_load(path, width, height, channels, 4);
-        if (image == null) throw new RuntimeException("Falha ao carregar textura: " + path);
+        ByteBuffer image = stbi_load(absolutePath, width, height, channels, 4);
+        if (image == null) {
+            throw new RuntimeException("Falha ao carregar textura: " + absolutePath + ". Erro STB: " + stbi_failure_reason());
+        }
 
         int texture = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, texture);
