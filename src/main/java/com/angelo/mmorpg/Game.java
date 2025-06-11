@@ -21,6 +21,7 @@ public class Game {
     private boolean isLich = false;
     private float skeletonX = -1, skeletonY = -1;
     private int grassTexture, treeTexture, stoneTexture, playerTexture, lichTexture, skeletonTexture;
+    private double lastTime; // Para calcular delta time
 
     public void run() {
         init();
@@ -62,6 +63,9 @@ public class Game {
                 map[x][y] = rand.nextInt(3); // 0 = grama, 1 = árvore, 2 = pedra
             }
         }
+
+// Inicializa tempo
+        lastTime = glfwGetTime();
     }
 
     private int loadTexture(String path) {
@@ -85,8 +89,13 @@ public class Game {
         glOrtho(0, 800, 0, 600, -1, 1);
 
         while (!glfwWindowShouldClose(window)) {
+// Calcula delta time
+            double currentTime = glfwGetTime();
+            float deltaTime = (float) (currentTime - lastTime);
+            lastTime = currentTime;
+
 // Movimento
-            float speed = 200 * glfwGetTimeDelta(window);
+            float speed = 200 * deltaTime;
             if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) playerY += speed;
             if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) playerY -= speed;
             if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) playerX -= speed;
