@@ -13,6 +13,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <lwjgl.version>3.3.3</lwjgl.version>
+        <joml.version>1.10.5</joml.version>
     </properties>
 
     <repositories>
@@ -72,6 +73,12 @@
             <version>${lwjgl.version}</version>
             <classifier>natives-linux</classifier>
         </dependency>
+        <!-- JOML para matemática 3D -->
+        <dependency>
+            <groupId>org.joml</groupId>
+            <artifactId>joml</artifactId>
+            <version>${joml.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -80,6 +87,8 @@
                 <directory>src/main/resources</directory>
                 <includes>
                     <include>**/*.png</include>
+                    <include>**/*.obj</include>
+                    <include>**/*.glsl</include>
                 </includes>
             </resource>
         </resources>
@@ -103,20 +112,33 @@
                     <argLine>--enable-preview</argLine>
                 </configuration>
             </plugin>
-            <!-- Plugin para copiar dependências nativas -->
+            <!-- Plugin para criar JAR com dependências -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.6.1</version>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
                 <executions>
                     <execution>
-                        <id>copy-dependencies</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>copy-dependencies</goal>
+                            <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.angelo.mmorpg.Game</mainClass>
+                                </transformer>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                         </configuration>
                     </execution>
                 </executions>
