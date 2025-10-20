@@ -15,7 +15,7 @@ Protótipo de um MMORPG em Java com LWJGL, inspirado em *Haven & Hearth* e *Over
 
 3. Instale dependências do sistema: `sudo apt install libgl1-mesa-dev libglfw3-dev libopenal-dev`.
 
-4. Clone este repositório: `git clone https://github.com/<seu-usuario>/Aetherlyn`.
+4. Clone este repositório: `git clone https://github.com/Galauk/Aetherlyn`.
 
 5. Abra no IntelliJ e execute `mvn clean install`.
 
