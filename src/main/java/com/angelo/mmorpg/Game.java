@@ -7,11 +7,17 @@ import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.*;
 import org.lwjgl.stb.*;
 import org.lwjgl.system.*;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.*;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.stream.Collectors;
+
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.*;
@@ -33,13 +39,13 @@ public class Game {
     private double lastX = 400, lastY = 300;
     private boolean firstMouse = true;
 
-    public void run() {
+    public void run() throws Exception {
         init();
         loop();
         cleanup();
     }
 
-    private void init() {
+    private void init() throws Exception {
 // Inicializa GLFW
         if (!glfwInit()) throw new IllegalStateException("Falha ao iniciar GLFW");
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -63,7 +69,7 @@ public class Game {
         texture = loadTexture("assets/grass.png");
 
 // Configura shaders
-        shaderProgram = createShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
+        shaderProgram = createShaderProgram("/shaders/vertex.glsl", "/shaders/fragment.glsl");
 
 // Configura cubo
         float[] vertices = {
@@ -135,7 +141,7 @@ public class Game {
         return texture;
     }
 
-    private int createShaderProgram(String vertexPath, String fragmentPath) {
+    private int createShaderProgram(String vertexPath, String fragmentPath) throws Exception {
         int vertexShader = glCreateShader(GL_VERTEX_SHADER);
         String vertexSource = readFile(vertexPath);
         glShaderSource(vertexShader, vertexSource);
@@ -165,11 +171,15 @@ public class Game {
         return program;
     }
 
-    private String readFile(String path) {
-        try {
-            return Files.readString(Paths.get(getClass().getClassLoader().getResource(path).toURI()), StandardCharsets.UTF_8);
-        } catch (IOException | java.net.URISyntaxException e) {
-            throw new RuntimeException("Falha ao ler arquivo: " + path, e);
+    private String readFile(String filePath) throws Exception {
+         InputStream is = getClass().getResourceAsStream(filePath);  // ex.: "/shaders/vertex.glsl"
+        if (is == null) {
+            throw new RuntimeException("Arquivo não encontrado: " + filePath);
+        }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+            return reader.lines().collect(Collectors.joining("\n"));
+        } catch (IOException e) {
+            throw new RuntimeException("Falha ao ler arquivo: " + filePath, e);
         }
     }
 
@@ -259,7 +269,7 @@ public class Game {
         glfwTerminate();
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         new Game().run();
     }
 }
