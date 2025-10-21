@@ -31,8 +31,8 @@ Protótipo de um MMORPG em Java com LWJGL, inspirado em *Haven & Hearth* e *Over
 
 ## Próximos Passos
 
-- Corrigir carregamento de texturas no protótipo 2D.
-- Adicionar terreno e modelos 3D (Blender, .obj).
+- Organizar sistema de carregamento de mapa(grind) para estrutura generativa
+- Criar instancia de personagem e outros vertentes
 - Implementar mecânicas de sobrevivência e monstros.
 
 Suporte a SQLite e multiplayer (KryoNet).
