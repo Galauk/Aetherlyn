@@ -1,38 +1,112 @@
-# Aetherlyn: MMORPG
+# Aetherlyn
 
-Protótipo de um MMORPG em Java com LWJGL, inspirado em *Haven & Hearth* e *Overlord*. Transição inicial para gráficos 3D.
+> An open-world MMORPG prototype built in Java, inspired by *Haven & Hearth* and *Overlord*.
 
-## Recursos
+![Aetherlyn 3D Client - Isometric prototype](docs/screenshot.png)
 
-- **Protótipo 3D**: Cubo texturizado com câmera controlável (WASD + mouse).
-- **Planejado (2D)**: Mapa procedural, coleta de madeira, transformação em lich, invocação de esqueleto.
+---
 
-## Como Rodar
+## What is Aetherlyn?
 
-1. Instale Java JDK 21: `sudo apt install openjdk-21-jdk`.
+Aetherlyn is a sandbox MMORPG where players explore a persistent open world, gather resources, survive, and build power — including dark paths like becoming a lich and commanding undead minions.
 
-2. Instale IntelliJ IDEA Community (jetbrains.com).
+The project is built around a **dual-client architecture**: both clients connect to the same game world and server, but offer different visual experiences:
 
-3. Instale dependências do sistema: `sudo apt install libgl1-mesa-dev libglfw3-dev libopenal-dev`.
+| Client | Renderer | Perspective |
+|--------|----------|-------------|
+| **2D Client** | LibGDX (sprite-based) | Isometric |
+| **3D Client** | LWJGL + OpenGL + GLSL | Isometric |
 
-4. Clone este repositório: `git clone https://github.com/Galauk/Aetherlyn`.
+This design allows players to choose their preferred visual style while sharing the same persistent world, similar to how *Haven & Hearth* balances simplicity with depth.
 
-5. Abra no IntelliJ e execute `mvn clean install`.
+---
 
-6. Coloque `grass.png` (32x32, PNG com transparência) em `src/main/resources/assets`.
+## Current State
 
-7. Coloque `vertex.glsl` e `fragment.glsl` em `src/main/resources/shaders`.
+The project is in early prototype stage. The **3D client** currently features:
 
-8. Rode `Game.java` (clique direito &gt; Run) ou:
+- ✅ Isometric camera with WASD + mouse control
+- ✅ Textured 3D cube rendered via custom GLSL shaders
+- ✅ OpenGL pipeline via LWJGL
+- 🔲 Terrain chunk loading (in progress)
+- 🔲 Player character instance
+- 🔲 2D client (planned)
 
-   ```bash
-   java -jar target/Aetherlyn-1.0-SNAPSHOT.jar
-   ```
+---
 
-## Próximos Passos
+## Planned Features
 
-- Corrigir carregamento de texturas no protótipo 2D.
-- Adicionar terreno e modelos 3D (Blender, .obj).
-- Implementar mecânicas de sobrevivência e monstros.
+### World
+- Procedural map generation with biomes
+- Resource gathering (wood, stone, etc.)
+- SQLite-based persistence
 
-Suporte a SQLite e multiplayer (KryoNet).
+### Characters & Combat
+- Player character with inventory system
+- Survival mechanics (hunger, shelter)
+- Monster spawning and AI
+
+### Dark Path
+- Lich transformation mechanic
+- Skeleton summoning and undead army management
+
+### Multiplayer
+- Client-server architecture via KryoNet
+- Persistent shared world for both 2D and 3D clients
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Language | Java 21 |
+| 3D Rendering | LWJGL 3, OpenGL, GLSL |
+| 2D Rendering | LibGDX (planned) |
+| Networking | KryoNet (planned) |
+| Database | SQLite (planned) |
+| Build | Maven |
+
+---
+
+## How to Run
+
+### Requirements
+
+- Java JDK 21
+- IntelliJ IDEA Community (recommended)
+- Linux system dependencies:
+
+```bash
+sudo apt install libgl1-mesa-dev libglfw3-dev libopenal-dev
+```
+
+### Setup
+
+1. Clone the repository:
+```bash
+git clone https://github.com/Galauk/Aetherlyn
+```
+
+2. Open in IntelliJ IDEA and run:
+```bash
+mvn clean install
+```
+
+3. Place `grass.png` (32x32 PNG) in `src/main/resources/assets/`
+
+4. Place `vertex.glsl` and `fragment.glsl` in `src/main/resources/shaders/`
+
+5. Run `Game.java` (right-click → Run) or:
+```bash
+java -jar target/Aetherlyn-1.0-SNAPSHOT.jar
+```
+
+---
+
+## Inspiration
+
+- [Haven & Hearth](https://www.havenandhearth.com/) — persistent open world, survival and crafting depth
+- *Overlord* — dark fantasy theme, commanding minions, morality through power
+
+---
