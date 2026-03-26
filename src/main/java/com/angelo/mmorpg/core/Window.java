@@ -1,6 +1,5 @@
-package com.angelo.mmorpg;
+package com.angelo.mmorpg.core;
 
-import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
 
 import static org.lwjgl.glfw.GLFW.*;
@@ -14,9 +13,9 @@ public class Window {
     private final String title;
 
     public Window(int width, int height, String title) {
-        this.width = width;
+        this.width  = width;
         this.height = height;
-        this.title = title;
+        this.title  = title;
     }
 
     public void init() {
@@ -36,24 +35,12 @@ public class Window {
         GL.createCapabilities();
     }
 
-    public boolean shouldClose() {
-        return glfwWindowShouldClose(handle);
-    }
+    public boolean shouldClose()  { return glfwWindowShouldClose(handle); }
+    public void swapBuffers()     { glfwSwapBuffers(handle); }
+    public void pollEvents()      { glfwPollEvents(); }
+    public void destroy()         { glfwDestroyWindow(handle); glfwTerminate(); }
 
-    public void swapBuffers() {
-        glfwSwapBuffers(handle);
-    }
-
-    public void pollEvents() {
-        glfwPollEvents();
-    }
-
-    public void destroy() {
-        glfwDestroyWindow(handle);
-        glfwTerminate();
-    }
-
-    public long getHandle() { return handle; }
-    public int getWidth()   { return width; }
-    public int getHeight()  { return height; }
+    public long getHandle()  { return handle; }
+    public int  getWidth()   { return width; }
+    public int  getHeight()  { return height; }
 }
