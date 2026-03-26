@@ -68,7 +68,7 @@ public class DebugRenderer {
 
     private void loadFont() {
         byte[] fontBytes;
-        try (InputStream is = DebugRenderer.class.getResourceAsStream("assets/font.ttf")) {
+        try (InputStream is = DebugRenderer.class.getResourceAsStream("/assets/font.ttf")) {
             if (is == null)
                 throw new RuntimeException(
                         "Fonte não encontrada: /assets/font.ttf\n" +

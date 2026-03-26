@@ -12,6 +12,7 @@
           <include>**/*.png</include>
           <include>**/*.obj</include>
           <include>**/*.glsl</include>
+          <include>**/*.ttf</include>
         </includes>
       </resource>
     </resources>
