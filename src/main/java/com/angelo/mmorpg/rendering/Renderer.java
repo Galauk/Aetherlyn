@@ -14,17 +14,15 @@ import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 
+/**
+ * Renderiza entidades da cena (por enquanto apenas o cubo do player).
+ * O chão é responsabilidade do TerrainRenderer.
+ */
 public class Renderer {
 
     private int shaderProgram;
-
     private int vao, vbo, ebo;
     private int texture;
-
-    private int floorVao, floorVbo, floorEbo;
-    private int floorTexture;
-
-    private static final float FLOOR_SIZE = 20.0f;
 
     private static final float[] CUBE_VERTICES = {
             -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
@@ -48,16 +46,8 @@ public class Renderer {
 
     public void init() {
         shaderProgram = ResourceLoader.createShaderProgram("/shaders/vertex.glsl", "/shaders/fragment.glsl");
-        texture       = ResourceLoader.loadTexture("/assets/grass.png");
+        texture       = ResourceLoader.loadTexture("/assets/player.png");
 
-        setupCube();
-        setupFloor();
-
-        glEnable(GL_DEPTH_TEST);
-        glClearColor(0.15f, 0.2f, 0.25f, 1.0f);
-    }
-
-    private void setupCube() {
         vao = glGenVertexArrays();
         vbo = glGenBuffers();
         ebo = glGenBuffers();
@@ -80,63 +70,25 @@ public class Renderer {
         glEnableVertexAttribArray(1);
 
         glBindVertexArray(0);
-    }
 
-    private void setupFloor() {
-        float s = FLOOR_SIZE;
-        float[] floorVertices = {
-                -s, 0.0f, -s,  0.0f, s,
-                s, 0.0f, -s,  s,    s,
-                s, 0.0f,  s,  s,    0.0f,
-                -s, 0.0f,  s,  0.0f, 0.0f,
-        };
-        int[] floorIndices = { 0, 1, 2, 2, 3, 0 };
-
-        floorVao = glGenVertexArrays();
-        floorVbo = glGenBuffers();
-        floorEbo = glGenBuffers();
-
-        glBindVertexArray(floorVao);
-
-        FloatBuffer fb = BufferUtils.createFloatBuffer(floorVertices.length);
-        fb.put(floorVertices).flip();
-        glBindBuffer(GL_ARRAY_BUFFER, floorVbo);
-        glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
-
-        IntBuffer ib = BufferUtils.createIntBuffer(floorIndices.length);
-        ib.put(floorIndices).flip();
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, floorEbo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, ib, GL_STATIC_DRAW);
-
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, 5 * Float.BYTES, 0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 2, GL_FLOAT, false, 5 * Float.BYTES, 3 * Float.BYTES);
-        glEnableVertexAttribArray(1);
-
-        glBindVertexArray(0);
-
-        floorTexture = texture;
+        glEnable(GL_DEPTH_TEST);
     }
 
     public void render(Camera camera, Vector3f playerPos) {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glUseProgram(shaderProgram);
 
+        // Cubo do player em Y=0.5 para ficar sobre o terreno
+        Matrix4f model = new Matrix4f().translate(
+                new Vector3f(playerPos.x, 0.5f, playerPos.z)
+        );
+
+        setUniformMatrix("model",      model);
         setUniformMatrix("view",       camera.getViewMatrix());
         setUniformMatrix("projection", camera.getProjectionMatrix());
 
-        // Chão
-        setUniformMatrix("model", new Matrix4f().identity());
-        glBindTexture(GL_TEXTURE_2D, floorTexture);
-        glBindVertexArray(floorVao);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        // Cubo do player (Y=0.5 para ficar sobre o chão)
-        setUniformMatrix("model", new Matrix4f().translate(new Vector3f(playerPos.x, 0.5f, playerPos.z)));
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(vao);
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-
         glBindVertexArray(0);
     }
 
@@ -150,9 +102,6 @@ public class Renderer {
         glDeleteVertexArrays(vao);
         glDeleteBuffers(vbo);
         glDeleteBuffers(ebo);
-        glDeleteVertexArrays(floorVao);
-        glDeleteBuffers(floorVbo);
-        glDeleteBuffers(floorEbo);
         glDeleteTextures(texture);
         glDeleteProgram(shaderProgram);
     }
