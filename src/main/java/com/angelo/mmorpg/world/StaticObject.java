@@ -42,6 +42,6 @@ public class StaticObject {
         float dx   = x - worldX;
         float dz   = z - worldZ;
         float dist = (float) Math.sqrt(dx * dx + dz * dz);
-        return dist < (collisionRadius + playerRadius);
+        return dist < (type.collisionRadius + playerRadius);
     }
 }
