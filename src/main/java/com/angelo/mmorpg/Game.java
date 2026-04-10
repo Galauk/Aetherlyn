@@ -120,7 +120,7 @@ public class Game {
 
         movePlayer(delta);
         camera.setTarget(playerPos);
-        debugInfo.update(fps, tps, playerPos, lastClick, camera.getZoom());
+        debugInfo.update(fps, tps, playerPos, lastClick, camera.getZoom(), camera.getYaw());
     }
 
     private void render() {

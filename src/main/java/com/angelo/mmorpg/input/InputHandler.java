@@ -62,6 +62,13 @@ public class InputHandler {
 
                 if (key == GLFW_KEY_G && (mods & GLFW_MOD_CONTROL) != 0)
                     debugState.toggleGrid();
+
+                // Q/E → rotacionar câmera 45°
+                if (key == GLFW_KEY_PAGE_DOWN)
+                    camera.rotateLeft();
+
+                if (key == GLFW_KEY_PAGE_UP)
+                    camera.rotateRight();
             }
         });
     }
