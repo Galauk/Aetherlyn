@@ -10,10 +10,14 @@ public class Camera {
 
     private static final float DISTANCE   = 10.0f;
     private static final float PITCH      = 45.0f;
-    private static final float YAW_STEP   = 45.0f; // graus por rotação
+    private static final float YAW_STEP   = 45.0f;
 
-    // YAW agora é mutável — começa no ângulo clássico isométrico
-    private float yaw = -135.0f;
+    // YAW atual (interpolado) e YAW destino
+    private float yaw        = -135.0f;
+    private float yawTarget  = -135.0f;
+
+    // Velocidade de interpolação — quanto maior, mais rápida a transição
+    private static final float YAW_SMOOTH = 10.0f;
 
     private final float aspectRatio;
     private float zoom = 5.0f;
@@ -83,11 +87,22 @@ public class Camera {
     public float    getZoom()           { return zoom; }
     public void     setZoom(float zoom) { this.zoom = Math.max(1.0f, Math.min(zoom, 20.0f)); }
 
-    /** Rotaciona a câmera 45° no sentido horário (tecla E). */
-    public void rotateRight() { yaw = (yaw + YAW_STEP) % 360f; }
+    /** Deve ser chamado a cada tick para suavizar a rotação. */
+    public void update(float delta) {
+        // Diferença angular no caminho mais curto (-180 a +180)
+        float diff = yawTarget - yaw;
+        while (diff >  180f) diff -= 360f;
+        while (diff < -180f) diff += 360f;
 
-    /** Rotaciona a câmera 45° no sentido anti-horário (tecla Q). */
-    public void rotateLeft()  { yaw = (yaw - YAW_STEP + 360f) % 360f; }
+        // Interpolação exponencial (ease-out): aproxima rápido, desacelera no fim
+        yaw += diff * Math.min(YAW_SMOOTH * delta, 1.0f);
+    }
 
-    public float getYaw() { return yaw; }
+    /** Rotaciona 45° no sentido horário (tecla E). */
+    public void rotateRight() { yawTarget -= YAW_STEP; }
+
+    /** Rotaciona 45° no sentido anti-horário (tecla Q). */
+    public void rotateLeft()  { yawTarget += YAW_STEP; }
+
+    public float getYaw() { return yawTarget; } // retorna o destino para o debug
 }

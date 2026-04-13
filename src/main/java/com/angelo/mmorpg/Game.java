@@ -119,6 +119,7 @@ public class Game {
         }
 
         movePlayer(delta);
+        camera.update(delta);
         camera.setTarget(playerPos);
         debugInfo.update(fps, tps, playerPos, lastClick, camera.getZoom(), camera.getYaw());
     }
