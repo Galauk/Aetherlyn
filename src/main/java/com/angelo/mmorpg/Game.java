@@ -39,8 +39,8 @@ public class Game {
     private DebugRenderer   debugRenderer;
     private WorldMap        worldMap;
 
-    private Vector3f playerPos    = new Vector3f(16.0f, 0.0f, 16.0f);
-    private Vector3f playerTarget = new Vector3f(16.0f, 0.0f, 16.0f);
+    private Vector3f playerPos    = new Vector3f(32.0f, 0.0f, 32.0f);
+    private Vector3f playerTarget = new Vector3f(32.0f, 0.0f, 32.0f);
     private Vector3f lastClick    = null;
 
     private float fps = 0, fpsTimer = 0;
@@ -121,7 +121,7 @@ public class Game {
         movePlayer(delta);
         camera.update(delta);
         camera.setTarget(playerPos);
-        debugInfo.update(fps, tps, playerPos, lastClick, camera.getZoom(), camera.getYaw());
+        debugInfo.update(fps, tps, playerPos, lastClick, camera.getZoom(), camera.getYaw(), worldMap.getSeed());
     }
 
     private void render() {

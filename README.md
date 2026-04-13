@@ -14,58 +14,104 @@ The project is built around a **dual-client architecture**: both clients connect
 
 | Client | Renderer | Perspective |
 |--------|----------|-------------|
-| **2D Client** | LibGDX (sprite-based) | Isometric |
 | **3D Client** | LWJGL + OpenGL + GLSL | Isometric |
-
-This design allows players to choose their preferred visual style while sharing the same persistent world, similar to how *Haven & Hearth* balances simplicity with depth.
+| **2D Client** | LibGDX (planned) | Isometric |
 
 ---
 
 ## Current State
 
-The project is in early prototype stage. The **3D client** currently features:
+The project is in active development. The **3D client** currently features:
 
-- ✅ Isometric camera with WASD + mouse control
-- ✅ Textured 3D cube rendered via custom GLSL shaders
-- ✅ OpenGL pipeline via LWJGL
-- 🔲 Terrain chunk loading (in progress)
-- 🔲 Player character instance
-- 🔲 2D client (planned)
+### ✅ Phase 1 — Foundation (complete)
+- Isometric camera with Q/E rotation (smooth ease-out interpolation)
+- Point-and-click movement with raycasting
+- Scroll zoom
+- Fixed timestep game loop (60 TPS logic / uncapped render)
+- Organized package structure (`core`, `camera`, `input`, `rendering`, `debug`, `world`)
+- F3 debug panel (FPS, TPS, position, zoom, camera angle, seed)
+- Ctrl+G debug grid overlay
 
----
+### 🔄 Phase 2 — World (in progress)
+- ✅ Terrain grid rendered from `terrain.png` spritesheet (32×32px tiles)
+- ✅ Procedural map generation via Perlin Noise + FBM (4 tile types: grass, dirt, stone, water)
+- ✅ Island-shaped maps with natural water borders
+- ✅ Static objects (stone, bush) with billboard rendering and circular collision
+- ✅ Player cannot walk on water or through objects
+- 🔲 Chunk system
+- 🔲 2D client setup (LibGDX)
 
-## Planned Features
+### 🔲 Phase 3 — Entities
+- Player entity with inventory
+- Monster AI (skeleton, lich)
+- Basic combat system
+- HUD
 
-### World
-- Procedural map generation with biomes
-- Resource gathering (wood, stone, etc.)
-- SQLite-based persistence
+### 🔲 Phase 4 — Server
+- KryoNet multiplayer
+- SQLite persistence
+- Shared world for 2D and 3D clients
 
-### Characters & Combat
-- Player character with inventory system
-- Survival mechanics (hunger, shelter)
-- Monster spawning and AI
-
-### Dark Path
-- Lich transformation mechanic
-- Skeleton summoning and undead army management
-
-### Multiplayer
-- Client-server architecture via KryoNet
-- Persistent shared world for both 2D and 3D clients
+### 🔲 Phase 5 — Dark Path
+- Lich transformation
+- Undead army management
+- Phylactery mechanic
 
 ---
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
+|-------|------------|
 | Language | Java 21 |
-| 3D Rendering | LWJGL 3, OpenGL, GLSL |
+| 3D Rendering | LWJGL 3, OpenGL 3.3, GLSL |
+| Math | JOML |
 | 2D Rendering | LibGDX (planned) |
 | Networking | KryoNet (planned) |
 | Database | SQLite (planned) |
 | Build | Maven |
+
+---
+
+## Project Structure
+
+```
+src/main/java/com/angelo/mmorpg/
+├── Game.java                  — entry point, main loop
+├── camera/
+│   └── Camera.java            — isometric camera, rotation, raycasting
+├── core/
+│   ├── Window.java            — GLFW window management
+│   └── ResourceLoader.java    — textures and shaders via classpath
+├── debug/
+│   ├── DebugState.java        — F3 / Ctrl+G toggle flags
+│   ├── DebugInfo.java         — debug data container
+│   └── DebugRenderer.java     — STB TrueType text overlay
+├── input/
+│   └── InputHandler.java      — mouse, keyboard, point-and-click
+├── rendering/
+│   ├── Renderer.java          — player billboard sprite
+│   ├── TerrainRenderer.java   — terrain tile mesh
+│   ├── ObjectRenderer.java    — static object billboard sprites
+│   └── GridRenderer.java      — debug grid overlay
+└── world/
+    ├── WorldMap.java          — tile grid, procedural generation
+    ├── PerlinNoise.java       — Perlin Noise + FBM implementation
+    └── StaticObject.java      — stone, bush with collision
+```
+
+---
+
+## Controls
+
+| Input | Action |
+|-------|--------|
+| Left click | Move player |
+| Q / E | Rotate camera 45° |
+| Scroll | Zoom in/out |
+| F3 | Toggle debug panel |
+| Ctrl+G | Toggle debug grid |
+| ESC | Quit |
 
 ---
 
@@ -83,24 +129,14 @@ sudo apt install libgl1-mesa-dev libglfw3-dev libopenal-dev
 
 ### Setup
 
-1. Clone the repository:
 ```bash
 git clone https://github.com/Galauk/Aetherlyn
-```
-
-2. Open in IntelliJ IDEA and run:
-```bash
+cd Aetherlyn
 mvn clean install
-```
-
-3. Place `grass.png` (32x32 PNG) in `src/main/resources/assets/`
-
-4. Place `vertex.glsl` and `fragment.glsl` in `src/main/resources/shaders/`
-
-5. Run `Game.java` (right-click → Run) or:
-```bash
 java -jar target/Aetherlyn-1.0-SNAPSHOT.jar
 ```
+
+All assets are bundled — no manual file placement needed.
 
 ---
 
@@ -108,5 +144,3 @@ java -jar target/Aetherlyn-1.0-SNAPSHOT.jar
 
 - [Haven & Hearth](https://www.havenandhearth.com/) — persistent open world, survival and crafting depth
 - *Overlord* — dark fantasy theme, commanding minions, morality through power
-
----

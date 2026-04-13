@@ -6,14 +6,19 @@ import java.util.List;
 
 /**
  * Representa o mapa do mundo como uma grade de tiles.
- * Também gerencia os objetos estáticos (pedras, arbustos).
+ * Geração procedural via Perlin Noise com FBM (Fractional Brownian Motion).
  *
- * TODO Fase 2: substituir generate() por Perlin/Simplex Noise.
+ * Dois mapas de ruído independentes definem o terreno:
+ *   - heightMap: determina o tipo de tile (água, grama, terra, pedra)
+ *   - moistureMap: influencia a distribuição de objetos
  */
 public class WorldMap {
 
-    public static final int WIDTH  = 32;
-    public static final int HEIGHT = 32;
+    public static final int WIDTH  = 64;
+    public static final int HEIGHT = 64;
+
+    // Seed padrão — pode ser alterada para gerar mapas diferentes
+    public static final long DEFAULT_SEED = 42L;
 
     // Coordenadas confirmadas no spritesheet (32x32px, grade 21x23)
     public enum TileType {
@@ -33,49 +38,82 @@ public class WorldMap {
         }
     }
 
+    private final long seed;
     private TileType[][]       tiles;
+    private boolean[][]        objectGrid;
     private List<StaticObject> objects;
 
-    // Grid auxiliar para colisão rápida com objetos (true = tile ocupado por objeto)
-    private boolean[][] objectGrid;
-
     public WorldMap() {
-        tiles      = new TileType[WIDTH][HEIGHT];
-        objectGrid = new boolean[WIDTH][HEIGHT];
-        objects    = new ArrayList<>();
+        this(DEFAULT_SEED);
+    }
+
+    public WorldMap(long seed) {
+        this.seed       = seed;
+        this.tiles      = new TileType[WIDTH][HEIGHT];
+        this.objectGrid = new boolean[WIDTH][HEIGHT];
+        this.objects    = new ArrayList<>();
         generate();
     }
 
     private void generate() {
-        // --- Tiles ---
+        PerlinNoise heightNoise   = new PerlinNoise(seed);
+        PerlinNoise moistureNoise = new PerlinNoise(seed + 1337);
+
         for (int x = 0; x < WIDTH; x++) {
             for (int z = 0; z < HEIGHT; z++) {
-                if (x == 0 || x == WIDTH - 1 || z == 0 || z == HEIGHT - 1) {
+                // FBM para altura: 4 oitavas, persistência 0.5, escala 0.08
+                float height   = heightNoise.fbm(x, z, 4, 0.5f, 0.08f);
+                float moisture = moistureNoise.fbm(x, z, 2, 0.5f, 0.05f);
+
+                // Borda forçada para água (ilha natural)
+                float edgeDist = edgeFactor(x, z);
+                height -= edgeDist;
+
+                // Define tile pela altura
+                if (height < -0.1f) {
                     tiles[x][z] = TileType.WATER;
-                } else if ((x * 7 + z * 3) % 17 == 0) {
-                    tiles[x][z] = TileType.STONE;
-                } else if ((x * 3 + z * 11) % 13 == 0) {
+                } else if (height < 0.05f) {
                     tiles[x][z] = TileType.DIRT;
+                } else if (height > 0.35f) {
+                    tiles[x][z] = TileType.STONE;
                 } else {
                     tiles[x][z] = TileType.GRASS;
                 }
             }
         }
 
-        // --- Objetos estáticos ---
-        // Pedras: distribuídas em tiles de pedra e grama
+        // Objetos: distribuídos após definir tiles
+        PerlinNoise objectNoise = new PerlinNoise(seed + 9999);
         for (int x = 1; x < WIDTH - 1; x++) {
             for (int z = 1; z < HEIGHT - 1; z++) {
-                if ((x * 5 + z * 9) % 23 == 0 && tiles[x][z].walkable) {
-                    placeObject(StaticObject.ObjectType.STONE, x, z);
-                } else if ((x * 11 + z * 7) % 29 == 0 && tiles[x][z] == TileType.GRASS) {
+                if (!tiles[x][z].walkable) continue;
+
+                float density = objectNoise.noise(x * 0.3f, z * 0.3f);
+
+                if (tiles[x][z] == TileType.GRASS && density > 0.4f) {
                     placeObject(StaticObject.ObjectType.BUSH, x, z);
+                } else if (tiles[x][z] == TileType.STONE && density > 0.3f) {
+                    placeObject(StaticObject.ObjectType.STONE, x, z);
+                } else if (tiles[x][z] == TileType.DIRT && density > 0.5f) {
+                    placeObject(StaticObject.ObjectType.STONE, x, z);
                 }
             }
         }
     }
 
+    /**
+     * Fator de borda: retorna valor positivo nas bordas do mapa
+     * para forçar água ao redor, criando uma ilha natural.
+     */
+    private float edgeFactor(int x, int z) {
+        float nx = (float) x / WIDTH  * 2f - 1f; // -1 a 1
+        float nz = (float) z / HEIGHT * 2f - 1f; // -1 a 1
+        float d  = Math.max(Math.abs(nx), Math.abs(nz)); // distância à borda
+        return Math.max(0f, d - 0.6f) * 2.5f; // começa a puxar para água a partir de 60% do raio
+    }
+
     private void placeObject(StaticObject.ObjectType type, int x, int z) {
+        if (objectGrid[x][z]) return; // tile já ocupado
         objects.add(new StaticObject(type, x, z));
         objectGrid[x][z] = true;
     }
@@ -90,10 +128,6 @@ public class WorldMap {
         return objectGrid[x][z];
     }
 
-    /**
-     * Verifica se a posição em coordenadas de mundo é caminhável
-     * (tile caminhável E sem objeto estático no tile).
-     */
     public boolean isWalkable(float worldX, float worldZ) {
         int tileX = (int) Math.floor(worldX);
         int tileZ = (int) Math.floor(worldZ);
@@ -102,15 +136,10 @@ public class WorldMap {
         return true;
     }
 
-    /**
-     * Verifica colisão circular com objetos próximos.
-     * Mais preciso que isWalkable para o movimento do player.
-     */
     public boolean collidesWithObject(float worldX, float worldZ, float playerRadius) {
         int tileX = (int) Math.floor(worldX);
         int tileZ = (int) Math.floor(worldZ);
 
-        // Verifica objetos nos tiles vizinhos (raio de busca = 2)
         for (int dx = -2; dx <= 2; dx++) {
             for (int dz = -2; dz <= 2; dz++) {
                 int nx = tileX + dx;
@@ -118,7 +147,6 @@ public class WorldMap {
                 if (nx < 0 || nx >= WIDTH || nz < 0 || nz >= HEIGHT) continue;
                 if (!objectGrid[nx][nz]) continue;
 
-                // Encontra o objeto nesse tile
                 for (StaticObject obj : objects) {
                     if (obj.tileX == nx && obj.tileZ == nz) {
                         if (obj.collidesWith(worldX, worldZ, playerRadius)) return true;
@@ -130,7 +158,8 @@ public class WorldMap {
         return false;
     }
 
+    public long              getSeed()    { return seed; }
     public List<StaticObject> getObjects() { return Collections.unmodifiableList(objects); }
-    public int getWidth()                  { return WIDTH; }
-    public int getHeight()                 { return HEIGHT; }
+    public int               getWidth()   { return WIDTH; }
+    public int               getHeight()  { return HEIGHT; }
 }
