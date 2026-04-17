@@ -158,6 +158,13 @@ public class WorldMap {
         return false;
     }
 
+    /** Remove um objeto coletado da grid de colisão. */
+    public void clearObject(int tileX, int tileZ) {
+        if (tileX >= 0 && tileX < WIDTH && tileZ >= 0 && tileZ < HEIGHT) {
+            objectGrid[tileX][tileZ] = false;
+        }
+    }
+
     public long              getSeed()    { return seed; }
     public List<StaticObject> getObjects() { return Collections.unmodifiableList(objects); }
     public int               getWidth()   { return WIDTH; }

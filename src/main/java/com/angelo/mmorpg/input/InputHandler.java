@@ -2,73 +2,95 @@ package com.angelo.mmorpg.input;
 
 import com.angelo.mmorpg.camera.Camera;
 import com.angelo.mmorpg.debug.DebugState;
+import com.angelo.mmorpg.rendering.InventoryRenderer;
+import com.angelo.mmorpg.entity.Inventory;
 import org.joml.Vector3f;
 
 import static org.lwjgl.glfw.GLFW.*;
 
 public class InputHandler {
 
-    private final long       windowHandle;
-    private final Camera     camera;
-    private final DebugState debugState;
-    private final int        screenW;
-    private final int        screenH;
+    private final long              windowHandle;
+    private final Camera            camera;
+    private final DebugState        debugState;
+    private final InventoryRenderer inventoryRenderer;
+    private final Inventory         inventory;
+    private final int               screenW;
+    private final int               screenH;
 
+    // Movimento
     private Vector3f moveTarget    = null;
     private boolean  hasMoveTarget = false;
 
-    public InputHandler(long windowHandle, Camera camera, DebugState debugState, int screenWidth, int screenHeight) {
-        this.windowHandle = windowHandle;
-        this.camera       = camera;
-        this.debugState   = debugState;
-        this.screenW      = screenWidth;
-        this.screenH      = screenHeight;
+    // Interação (clique direito)
+    private Vector3f interactTarget    = null;
+    private boolean  hasInteractTarget = false;
+
+    // Posição atual do mouse
+    private float mouseX, mouseY;
+
+    public InputHandler(long windowHandle, Camera camera, DebugState debugState,
+                        InventoryRenderer inventoryRenderer, Inventory inventory,
+                        int screenWidth, int screenHeight) {
+        this.windowHandle      = windowHandle;
+        this.camera            = camera;
+        this.debugState        = debugState;
+        this.inventoryRenderer = inventoryRenderer;
+        this.inventory         = inventory;
+        this.screenW           = screenWidth;
+        this.screenH           = screenHeight;
     }
 
     public void init() {
         glfwSetInputMode(windowHandle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
-        // Clique esquerdo → mover player
+        glfwSetCursorPosCallback(windowHandle, (window, xpos, ypos) -> {
+            mouseX = (float) xpos;
+            mouseY = (float) ypos;
+            inventoryRenderer.onMouseMove(mouseX, mouseY, inventory);
+        });
+
         glfwSetMouseButtonCallback(windowHandle, (window, button, action, mods) -> {
-            if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-                double[] xpos = new double[1];
-                double[] ypos = new double[1];
-                glfwGetCursorPos(window, xpos, ypos);
+            // Passa evento para o inventário primeiro
+            inventoryRenderer.onMouseButton(mouseX, mouseY, button, action, inventory);
 
-                Vector3f worldPos = camera.screenToWorld(
-                        (float) xpos[0], (float) ypos[0], screenW, screenH
-                );
+            if (action == GLFW_PRESS) {
+                Vector3f worldPos = camera.screenToWorld(mouseX, mouseY, screenW, screenH);
 
-                if (worldPos != null) {
-                    moveTarget    = worldPos;
-                    hasMoveTarget = true;
+                if (button == GLFW_MOUSE_BUTTON_LEFT) {
+                    if (worldPos != null) {
+                        moveTarget    = worldPos;
+                        hasMoveTarget = true;
+                    }
+                }
+
+                if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+                    if (worldPos != null) {
+                        interactTarget    = worldPos;
+                        hasInteractTarget = true;
+                    }
                 }
             }
         });
 
-        // Scroll → zoom
         glfwSetScrollCallback(windowHandle, (window, xoffset, yoffset) ->
                 camera.setZoom(camera.getZoom() - (float) yoffset * 0.5f)
         );
 
-        // Teclado
         glfwSetKeyCallback(windowHandle, (window, key, scancode, action, mods) -> {
             if (action == GLFW_PRESS) {
                 if (key == GLFW_KEY_ESCAPE)
                     glfwSetWindowShouldClose(window, true);
-
                 if (key == GLFW_KEY_F3)
                     debugState.toggleDebugPanel();
-
                 if (key == GLFW_KEY_G && (mods & GLFW_MOD_CONTROL) != 0)
                     debugState.toggleGrid();
-
-                // Q/E → rotacionar câmera 45°
-                if (key == GLFW_KEY_PAGE_DOWN)
+                if (key == GLFW_KEY_Q)
                     camera.rotateLeft();
-
-                if (key == GLFW_KEY_PAGE_UP)
+                if (key == GLFW_KEY_E)
                     camera.rotateRight();
+                if (key == GLFW_KEY_I)
+                    inventoryRenderer.toggle();
             }
         });
     }
@@ -77,5 +99,11 @@ public class InputHandler {
         if (!hasMoveTarget) return null;
         hasMoveTarget = false;
         return moveTarget;
+    }
+
+    public Vector3f consumeInteractTarget() {
+        if (!hasInteractTarget) return null;
+        hasInteractTarget = false;
+        return interactTarget;
     }
 }

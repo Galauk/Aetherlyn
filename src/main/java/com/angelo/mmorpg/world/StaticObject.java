@@ -1,33 +1,37 @@
 package com.angelo.mmorpg.world;
 
+import com.angelo.mmorpg.entity.ItemType;
+
 /**
- * Representa um objeto estático no mundo (pedra, arbusto, etc).
- * Tem posição no grid e bloqueia passagem do player.
+ * Objeto estático no mundo (pedra, arbusto).
+ * Pode ser coletado com clique direito, dropando um item.
  */
 public class StaticObject {
 
     public enum ObjectType {
-        STONE  (20, 19, 0.4f),  // pedra  — [20,19] no spritesheet 32px
-        BUSH   (17, 11, 0.4f);  // arbusto — [17,11] no spritesheet 32px
+        STONE (20, 19, 0.4f, ItemType.STONE),
+        BUSH  (17, 11, 0.4f, ItemType.WOOD);
 
-        public final int   spriteCol;
-        public final int   spriteRow;
-        public final float collisionRadius; // raio de colisão em unidades de mundo
+        public final int      spriteCol;
+        public final int      spriteRow;
+        public final float    collisionRadius;
+        public final ItemType drop; // item que dropa ao ser coletado
 
-        ObjectType(int col, int row, float radius) {
+        ObjectType(int col, int row, float radius, ItemType drop) {
             this.spriteCol       = col;
             this.spriteRow       = row;
             this.collisionRadius = radius;
+            this.drop            = drop;
         }
     }
 
     public final ObjectType type;
     public final int        tileX;
     public final int        tileZ;
+    public final float      worldX;
+    public final float      worldZ;
 
-    // Centro do objeto em coordenadas de mundo (meio do tile)
-    public final float worldX;
-    public final float worldZ;
+    private boolean collected = false;
 
     public StaticObject(ObjectType type, int tileX, int tileZ) {
         this.type   = type;
@@ -37,11 +41,13 @@ public class StaticObject {
         this.worldZ = tileZ + 0.5f;
     }
 
-    /** Verifica se o ponto (x, z) colide com este objeto. */
     public boolean collidesWith(float x, float z, float playerRadius) {
-        float dx   = x - worldX;
-        float dz   = z - worldZ;
-        float dist = (float) Math.sqrt(dx * dx + dz * dz);
-        return dist < (type.collisionRadius + playerRadius);
+        if (collected) return false;
+        float dx = x - worldX;
+        float dz = z - worldZ;
+        return Math.sqrt(dx * dx + dz * dz) < (type.collisionRadius + playerRadius);
     }
+
+    public void collect()       { collected = true; }
+    public boolean isCollected(){ return collected; }
 }
