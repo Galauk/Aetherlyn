@@ -2,25 +2,37 @@ package com.angelo.mmorpg.entity;
 
 /**
  * Atributos base do player.
- * A força determina o peso máximo carregável — estilo Ultima Online.
- * Peso máximo = força * 3.5 (cada ponto de força = 3.5 unidades de carga)
+ * Força → peso máximo carregável e dano base.
+ * Defesa → reduz dano recebido.
  */
 public class PlayerStats {
 
-    private int   strength;   // força base
-    private float maxWeight;  // peso máximo calculado
+    private int   strength;
+    private int   defense;
+    private int   maxHp;
+    private int   hp;
+    private float maxWeight;
 
     public PlayerStats() {
-        this(10); // força inicial
+        this(10, 2, 50);
     }
 
-    public PlayerStats(int strength) {
+    public PlayerStats(int strength, int defense, int maxHp) {
         this.strength  = strength;
+        this.defense   = defense;
+        this.maxHp     = maxHp;
+        this.hp        = maxHp;
         this.maxWeight = calcMaxWeight(strength);
     }
 
-    private float calcMaxWeight(int str) {
-        return str * 3.5f;
+    private float calcMaxWeight(int str) { return str * 3.5f; }
+
+    public void takeDamage(int amount) {
+        hp = Math.max(0, hp - amount);
+    }
+
+    public void heal(int amount) {
+        hp = Math.min(maxHp, hp + amount);
     }
 
     public void increaseStrength(int amount) {
@@ -28,6 +40,10 @@ public class PlayerStats {
         maxWeight  = calcMaxWeight(strength);
     }
 
+    public boolean isDead()     { return hp <= 0; }
     public int   getStrength()  { return strength; }
+    public int   getDefense()   { return defense; }
+    public int   getHp()        { return hp; }
+    public int   getMaxHp()     { return maxHp; }
     public float getMaxWeight() { return maxWeight; }
 }

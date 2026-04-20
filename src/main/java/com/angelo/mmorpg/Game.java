@@ -5,7 +5,7 @@ import com.angelo.mmorpg.core.Window;
 import com.angelo.mmorpg.debug.DebugInfo;
 import com.angelo.mmorpg.debug.DebugRenderer;
 import com.angelo.mmorpg.debug.DebugState;
-import com.angelo.mmorpg.entity.Player;
+import com.angelo.mmorpg.entity.*;
 import com.angelo.mmorpg.input.InputHandler;
 import com.angelo.mmorpg.rendering.*;
 import com.angelo.mmorpg.world.StaticObject;
@@ -26,7 +26,8 @@ public class Game {
     private static final double TICK_TIME = 1.0 / TPS;
     private static final int    MAX_TICKS = 5;
 
-    private static final float  PLAYER_SPEED = 3.0f;
+    private static final float  PLAYER_SPEED     = 3.0f;
+    private static final float  ATTACK_COOLDOWN  = 0.8f;  // segundos entre ataques do player
 
     private Window            window;
     private Camera            camera;
@@ -34,6 +35,7 @@ public class Game {
     private Renderer          renderer;
     private TerrainRenderer   terrainRenderer;
     private ObjectRenderer    objectRenderer;
+    private CreatureRenderer  creatureRenderer;
     private GridRenderer      gridRenderer;
     private InventoryRenderer inventoryRenderer;
     private DebugState        debugState;
@@ -41,8 +43,11 @@ public class Game {
     private DebugRenderer     debugRenderer;
     private WorldMap          worldMap;
     private Player            player;
+    private CreatureManager   creatureManager;
+    private CombatSystem      combatSystem;
 
-    private Vector3f lastClick = null;
+    private Vector3f lastClick        = null;
+    private float    playerAttackTimer = 0;
 
     private float fps = 0, fpsTimer = 0;
     private int   frameCount = 0;
@@ -61,6 +66,8 @@ public class Game {
 
         worldMap          = new WorldMap();
         player            = new Player(WorldMap.WIDTH / 2f, WorldMap.HEIGHT / 2f);
+        combatSystem      = new CombatSystem();
+        creatureManager   = new CreatureManager();
         debugState        = new DebugState();
         debugInfo         = new DebugInfo();
         camera            = new Camera(WIDTH, HEIGHT);
@@ -68,20 +75,23 @@ public class Game {
         input             = new InputHandler(window.getHandle(), camera, debugState,
                 inventoryRenderer, player.getInventory(),
                 WIDTH, HEIGHT);
-        renderer        = new Renderer();
-        terrainRenderer = new TerrainRenderer();
-        objectRenderer  = new ObjectRenderer();
-        gridRenderer    = new GridRenderer();
-        debugRenderer   = new DebugRenderer(WIDTH, HEIGHT);
+        renderer         = new Renderer();
+        terrainRenderer  = new TerrainRenderer();
+        objectRenderer   = new ObjectRenderer();
+        creatureRenderer = new CreatureRenderer();
+        gridRenderer     = new GridRenderer();
+        debugRenderer    = new DebugRenderer(WIDTH, HEIGHT);
 
         input.init();
         renderer.init();
         terrainRenderer.init(worldMap);
         objectRenderer.init();
+        creatureRenderer.init();
         gridRenderer.init();
         debugRenderer.init();
         inventoryRenderer.init();
 
+        creatureManager.spawnAll(worldMap);
         camera.setTarget(player.getPosition());
     }
 
@@ -114,6 +124,10 @@ public class Game {
     }
 
     private void tick(float delta) {
+        if (player.getStats().isDead()) return;
+
+        playerAttackTimer = Math.max(0, playerAttackTimer - delta);
+
         Vector3f pos = player.getPosition();
 
         // Movimento
@@ -126,11 +140,25 @@ public class Game {
             }
         }
 
-        // Interação (clique direito) — coleta objeto próximo
+        // Interação: coleta objeto OU ataca criatura
         Vector3f interactTarget = input.consumeInteractTarget();
         if (interactTarget != null) {
-            tryCollect(interactTarget.x, interactTarget.z);
+            // Tenta atacar criatura primeiro
+            Creature target = creatureManager.getCreatureAt(
+                    interactTarget.x, interactTarget.z, 1.5f);
+
+            if (target != null && player.canInteractWith(target.getPosition().x, target.getPosition().z)
+                    && playerAttackTimer <= 0) {
+                combatSystem.playerAttack(player, target);
+                playerAttackTimer = ATTACK_COOLDOWN;
+            } else {
+                // Nenhuma criatura — tenta coletar objeto
+                tryCollect(interactTarget.x, interactTarget.z);
+            }
         }
+
+        // Atualiza criaturas
+        creatureManager.update(delta, player, worldMap, combatSystem);
 
         movePlayer(delta);
         camera.update(delta);
@@ -138,11 +166,7 @@ public class Game {
         debugInfo.update(fps, tps, pos, lastClick, camera.getZoom(), camera.getYaw(), worldMap.getSeed());
     }
 
-    /**
-     * Tenta coletar um objeto próximo ao ponto clicado e ao player.
-     */
     private void tryCollect(float wx, float wz) {
-        Vector3f pos = player.getPosition();
         List<StaticObject> objects = worldMap.getObjects();
 
         StaticObject nearest = null;
@@ -150,28 +174,18 @@ public class Game {
 
         for (StaticObject obj : objects) {
             if (obj.isCollected()) continue;
-
-            // Distância do clique ao objeto
             float dx = wx - obj.worldX;
             float dz = wz - obj.worldZ;
-            float distClick = (float) Math.sqrt(dx * dx + dz * dz);
-
-            if (distClick < 1.0f && distClick < minDist) {
-                // Verifica se o player está perto o suficiente
-                if (player.canInteractWith(obj.worldX, obj.worldZ)) {
-                    nearest = obj;
-                    minDist = distClick;
-                }
+            float d  = (float) Math.sqrt(dx * dx + dz * dz);
+            if (d < 1.0f && d < minDist && player.canInteractWith(obj.worldX, obj.worldZ)) {
+                nearest = obj;
+                minDist = d;
             }
         }
 
-        if (nearest != null) {
-            boolean collected = player.collect(nearest.type.drop);
-            if (collected) {
-                nearest.collect();
-                // Remove da grid de colisão no worldMap
-                worldMap.clearObject(nearest.tileX, nearest.tileZ);
-            }
+        if (nearest != null && player.collect(nearest.type.drop)) {
+            nearest.collect();
+            worldMap.clearObject(nearest.tileX, nearest.tileZ);
         }
     }
 
@@ -187,20 +201,19 @@ public class Game {
         Vector3f dir  = new Vector3f(diff).normalize();
         Vector3f next = new Vector3f(pos).add(new Vector3f(dir).mul(Math.min(step, dist)));
 
-        if (canMoveTo(next))       { player.setPosition(next); return; }
-
-        Vector3f nextX = new Vector3f(next.x, pos.y, pos.z);
-        if (canMoveTo(nextX))      { player.setPosition(nextX); return; }
-
-        Vector3f nextZ = new Vector3f(pos.x, pos.y, next.z);
-        if (canMoveTo(nextZ))        player.setPosition(nextZ);
+        if (canMoveTo(next))            { player.setPosition(next); return; }
+        Vector3f nx = new Vector3f(next.x, pos.y, pos.z);
+        if (canMoveTo(nx))              { player.setPosition(nx);   return; }
+        Vector3f nz = new Vector3f(pos.x, pos.y, next.z);
+        if (canMoveTo(nz))                player.setPosition(nz);
     }
 
     private boolean canMoveTo(Vector3f pos) {
         float r = Player.COLLISION_RADIUS;
-        float[][] corners = {{ pos.x-r, pos.z-r }, { pos.x+r, pos.z-r },
-                { pos.x-r, pos.z+r }, { pos.x+r, pos.z+r }};
-        for (float[] c : corners) if (!worldMap.isWalkable(c[0], c[1])) return false;
+        if (!worldMap.isWalkable(pos.x - r, pos.z - r)) return false;
+        if (!worldMap.isWalkable(pos.x + r, pos.z - r)) return false;
+        if (!worldMap.isWalkable(pos.x - r, pos.z + r)) return false;
+        if (!worldMap.isWalkable(pos.x + r, pos.z + r)) return false;
         return !worldMap.collidesWithObject(pos.x, pos.z, r);
     }
 
@@ -209,12 +222,12 @@ public class Game {
 
         terrainRenderer.render(camera);
         objectRenderer.render(camera, worldMap);
+        creatureRenderer.render(camera, creatureManager);
         renderer.render(camera, player.getPosition());
 
         if (debugState.isGridVisible())
             gridRenderer.render(camera);
 
-        // UI — renderizado por cima
         inventoryRenderer.render(player.getInventory());
 
         if (debugState.isDebugPanelVisible())
@@ -225,6 +238,7 @@ public class Game {
         renderer.cleanup();
         terrainRenderer.cleanup();
         objectRenderer.cleanup();
+        creatureRenderer.cleanup();
         gridRenderer.cleanup();
         inventoryRenderer.cleanup();
         debugRenderer.cleanup();
