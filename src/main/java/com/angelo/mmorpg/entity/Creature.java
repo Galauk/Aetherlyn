@@ -7,32 +7,28 @@ import java.util.Random;
 
 /**
  * Entidade de criatura com máquina de estados de IA.
- *
- * Estados:
- *   IDLE    → aguarda, depois inicia PATROL
- *   PATROL  → caminha aleatoriamente; detecta player → CHASE ou FLEE
- *   CHASE   → persegue player; dentro do raio de ataque → ATTACK
- *   ATTACK  → ataca player com cooldown; player foge → volta a PATROL
- *   FLEE    → foge do player (PASSIVE)
- *   DEAD    → sem update
+ * Mantém distância mínima do player para não sobrepor visualmente.
  */
 public class Creature {
 
-    private static final float PATROL_CHANGE_TIME = 3.0f;   // segundos entre mudanças de direção
-    private static final float IDLE_TIME          = 1.5f;   // segundos parado antes de patrulhar
-    private static final float ATTACK_COOLDOWN    = 1.5f;   // segundos entre ataques
+    // Distância mínima que a criatura mantém do player ao atacar
+    private static final float MIN_DISTANCE     = 0.9f;
+
+    private static final float PATROL_CHANGE_TIME = 3.0f;
+    private static final float IDLE_TIME          = 1.5f;
+    private static final float ATTACK_COOLDOWN    = 1.5f;
 
     private final CreatureType  type;
     private final Vector3f      position;
     private final Vector3f      patrolTarget;
 
-    private CreatureState state       = CreatureState.IDLE;
+    private CreatureState state      = CreatureState.IDLE;
     private int           hp;
-    private boolean       aggressive  = false; // NEUTRAL fica true ao ser atacado
+    private boolean       aggressive = false;
 
-    private float idleTimer    = 0;
-    private float patrolTimer  = 0;
-    private float attackTimer  = 0;
+    private float idleTimer   = 0;
+    private float patrolTimer = 0;
+    private float attackTimer = 0;
 
     private final Random rng = new Random();
     private final long   id;
@@ -46,10 +42,6 @@ public class Creature {
         this.id           = idCounter++;
     }
 
-    /**
-     * Atualiza a IA da criatura.
-     * Chamado a cada tick (60 TPS).
-     */
     public void update(float delta, Player player, WorldMap worldMap, CombatSystem combat) {
         if (state == CreatureState.DEAD) return;
 
@@ -86,34 +78,45 @@ public class Creature {
             patrolTimer = 0;
             pickPatrolTarget();
         }
-
         moveToward(patrolTarget, type.speed * 0.5f, delta, worldMap);
-
-        if (distanceTo(patrolTarget) < 0.3f) {
-            state = CreatureState.IDLE;
-        }
-
+        if (distanceTo(patrolTarget) < 0.3f) state = CreatureState.IDLE;
         checkAggro(distToPlayer);
     }
 
     private void updateChase(float delta, float distToPlayer, Player player, WorldMap worldMap) {
-        moveToward(player.getPosition(), type.speed, delta, worldMap);
-
         if (distToPlayer <= type.attackRadius) {
             state = CreatureState.ATTACK;
-        } else if (distToPlayer > type.visionRadius * 1.5f) {
-            // Player fugiu — volta a patrulhar
-            state       = CreatureState.PATROL;
-            aggressive  = false;
+            return;
+        }
+
+        // Só move se estiver além da distância mínima
+        if (distToPlayer > MIN_DISTANCE) {
+            moveToward(player.getPosition(), type.speed, delta, worldMap);
+        }
+
+        if (distToPlayer > type.visionRadius * 1.5f) {
+            state      = CreatureState.PATROL;
+            aggressive = false;
         }
     }
 
     private void updateAttack(float delta, float distToPlayer, Player player, CombatSystem combat) {
-        if (distToPlayer > type.attackRadius) {
+        // Se player saiu do raio de ataque, volta a perseguir
+        if (distToPlayer > type.attackRadius + 0.5f) {
             state = CreatureState.CHASE;
             return;
         }
 
+        // Mantém distância mínima — empurra criatura para trás se muito perto
+        if (distToPlayer < MIN_DISTANCE) {
+            Vector3f away = new Vector3f(position).sub(player.getPosition());
+            if (away.length() > 0.001f) {
+                away.normalize().mul(MIN_DISTANCE - distToPlayer);
+                position.add(away);
+            }
+        }
+
+        // Ataca com cooldown
         if (attackTimer <= 0 && type.damageMax > 0) {
             combat.creatureAttack(this, player);
             attackTimer = ATTACK_COOLDOWN;
@@ -125,9 +128,8 @@ public class Creature {
             state = CreatureState.PATROL;
             return;
         }
-
-        // Move na direção oposta ao player
-        Vector3f away = new Vector3f(position).sub(player.getPosition()).normalize();
+        Vector3f away      = new Vector3f(position).sub(player.getPosition());
+        if (away.length() > 0.001f) away.normalize();
         Vector3f fleeTarget = new Vector3f(position).add(new Vector3f(away).mul(3f));
         moveToward(fleeTarget, type.speed * 1.2f, delta, worldMap);
     }
@@ -159,16 +161,12 @@ public class Creature {
         Vector3f dir  = new Vector3f(diff).normalize();
         Vector3f next = new Vector3f(position).add(new Vector3f(dir).mul(speed * delta));
 
-        if (worldMap.isWalkable(next.x, next.z)) {
-            position.set(next);
-        } else {
-            // Tenta deslizar em X ou Z
-            Vector3f nx = new Vector3f(next.x, 0, position.z);
-            Vector3f nz = new Vector3f(position.x, 0, next.z);
-            if (worldMap.isWalkable(nx.x, nx.z))      position.set(nx);
-            else if (worldMap.isWalkable(nz.x, nz.z)) position.set(nz);
-            else pickPatrolTarget(); // bloqueado — escolhe novo destino
-        }
+        if (worldMap.isWalkable(next.x, next.z))           { position.set(next); return; }
+        Vector3f nx = new Vector3f(next.x, 0, position.z);
+        if (worldMap.isWalkable(nx.x, nx.z))               { position.set(nx);   return; }
+        Vector3f nz = new Vector3f(position.x, 0, next.z);
+        if (worldMap.isWalkable(nz.x, nz.z))               { position.set(nz);   return; }
+        pickPatrolTarget();
     }
 
     private void pickPatrolTarget() {
@@ -190,7 +188,6 @@ public class Creature {
             hp    = 0;
             state = CreatureState.DEAD;
         } else {
-            // NEUTRAL fica agressivo ao ser atacado
             if (type.behavior == CreatureBehavior.NEUTRAL) aggressive = true;
             state = CreatureState.CHASE;
         }
