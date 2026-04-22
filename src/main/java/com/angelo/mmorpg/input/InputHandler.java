@@ -47,7 +47,7 @@ public class InputHandler {
             mouseX = (float) xpos;
             mouseY = (float) ypos;
             inventoryRenderer.onMouseMove(mouseX, mouseY, inventory);
-            hudRenderer.setMousePos(mouseX, mouseY);
+            //hudRenderer.setMousePos(mouseX, mouseY);
         });
 
         glfwSetMouseButtonCallback(windowHandle, (window, button, action, mods) -> {
@@ -76,8 +76,8 @@ public class InputHandler {
                 if (key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(window, true);
                 if (key == GLFW_KEY_F3)     debugState.toggleDebugPanel();
                 if (key == GLFW_KEY_G && (mods & GLFW_MOD_CONTROL) != 0) debugState.toggleGrid();
-                if (key == GLFW_KEY_Q)      camera.rotateLeft();
-                if (key == GLFW_KEY_E)      camera.rotateRight();
+                if (key == GLFW_KEY_PAGE_UP)   camera.rotateLeft();
+                if (key == GLFW_KEY_PAGE_DOWN) camera.rotateRight();
                 if (key == GLFW_KEY_I)      inventoryRenderer.toggle();
             }
         });
