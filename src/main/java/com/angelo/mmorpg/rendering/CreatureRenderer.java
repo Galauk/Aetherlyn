@@ -82,7 +82,7 @@ public class CreatureRenderer {
             Matrix4f model  = billboardMatrix(right, up, pos);
 
             // --- Sprite ---
-            int tex = getTexture(c.getType().texturePath);
+            int tex = getTexture(c.getDef().texturePath);
             glUseProgram(spriteProg);
             glUniformMatrix4fv(locSprModel, false, model.get(fb));
             glUniformMatrix4fv(locSprView,  false, view.get(fb));

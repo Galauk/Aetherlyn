@@ -274,7 +274,7 @@ public class HudRenderer {
 
             // Nome (só na principal)
             if (main) {
-                drawText(c.getType().name, barX, barY - 14f, 1f,0.9f,0.6f,1f);
+                drawText(c.getDef().name, barX, barY - 14f, 1f,0.9f,0.6f,1f);
             }
 
             panelY += barH + CP_GAP + (main ? 18f : 0f);
@@ -320,7 +320,7 @@ public class HudRenderer {
             float cx=mmX+(c.getPosition().x/worldMap.getWidth())*MM_SIZE;
             float cy=mmY+(c.getPosition().z/worldMap.getHeight())*MM_SIZE;
             float r,g,b;
-            switch (c.getType().behavior) {
+            switch (c.getDef().behavior) {
                 case HOSTILE -> {r=0.9f;g=0.1f;b=0.1f;}
                 case NEUTRAL -> {r=0.9f;g=0.8f;b=0.1f;}
                 default      -> {r=0.1f;g=0.9f;b=0.3f;}
