@@ -112,8 +112,8 @@ public class ObjectRenderer {
 
         for (StaticObject obj : objects) {
             // UV offset para o tile correto do spritesheet
-            float u0 = obj.type.spriteCol * TILE_U + UV_MARGIN;
-            float v0 = obj.type.spriteRow * TILE_V + UV_MARGIN;
+            float u0 = obj.def.spriteCol * TILE_U + UV_MARGIN;
+            float v0 = obj.def.spriteRow * TILE_V + UV_MARGIN;
             glUniform2f(locUVOffset, u0, v0);
 
             // Billboard matrix

@@ -117,6 +117,11 @@ public class Game {
             render();
             window.swapBuffers();
             window.pollEvents();
+
+            // Atualiza câmera se janela foi redimensionada
+            if (window.wasResized()) {
+                camera.resize(window.getWidth(), window.getHeight());
+            }
         }
     }
 
@@ -186,22 +191,9 @@ public class Game {
         Vector3f dir=new Vector3f(diff).normalize();
         Vector3f next=new Vector3f(pos).add(new Vector3f(dir).mul(Math.min(step,dist)));
 
-        if      (canMoveTo(next))                            { pushCreatures(dir); player.setPosition(next); }
-        else if (canMoveTo(new Vector3f(next.x,0,pos.z)))   { pushCreatures(dir); player.setPosition(new Vector3f(next.x,0,pos.z)); }
-        else if (canMoveTo(new Vector3f(pos.x,0,next.z)))   { pushCreatures(dir); player.setPosition(new Vector3f(pos.x,0,next.z)); }
-    }
-
-    private void pushCreatures(Vector3f dir) {
-        float r=Player.COLLISION_RADIUS+0.6f;
-        Vector3f pos=player.getPosition();
-        for (Creature c : creatureManager.getCreatures()) {
-            if (c.isDead()) continue;
-            float dx=c.getPosition().x-pos.x,dz=c.getPosition().z-pos.z;
-            if (Math.sqrt(dx*dx+dz*dz)<r) {
-                Vector3f pushed=new Vector3f(c.getPosition()).add(new Vector3f(dir).mul(0.15f));
-                if (worldMap.isWalkable(pushed.x,pushed.z)) c.getPosition().set(pushed);
-            }
-        }
+        if      (canMoveTo(next))                            { player.setPosition(next); }
+        else if (canMoveTo(new Vector3f(next.x,0,pos.z)))   { player.setPosition(new Vector3f(next.x,0,pos.z)); }
+        else if (canMoveTo(new Vector3f(pos.x,0,next.z)))   { player.setPosition(new Vector3f(pos.x,0,next.z)); }
     }
 
     private boolean canMoveTo(Vector3f pos) {

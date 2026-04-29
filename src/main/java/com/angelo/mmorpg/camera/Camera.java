@@ -19,10 +19,15 @@ public class Camera {
     // Velocidade de interpolação — quanto maior, mais rápida a transição
     private static final float YAW_SMOOTH = 10.0f;
 
-    private final float aspectRatio;
+    private float aspectRatio;
     private float zoom = 5.0f;
 
     public Camera(int screenWidth, int screenHeight) {
+        this.aspectRatio = (float) screenWidth / screenHeight;
+    }
+
+    /** Chamado quando a janela é redimensionada. */
+    public void resize(int screenWidth, int screenHeight) {
         this.aspectRatio = (float) screenWidth / screenHeight;
     }
 

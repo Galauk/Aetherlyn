@@ -156,8 +156,8 @@ public class InventoryRenderer {
         for (Item item : inventory.getItems()) {
             float ix = areaX + item.invX;
             float iy = areaY + item.invY;
-            float u0 = item.type.spriteCol * TILE_U + UV_MARGIN;
-            float v0 = item.type.spriteRow * TILE_V + UV_MARGIN;
+            float u0 = item.def.spriteCol * TILE_U + UV_MARGIN;
+            float v0 = item.def.spriteRow * TILE_V + UV_MARGIN;
 
             glUniform2f(locSprPos, ix, iy);
             glUniform2f(locSprSize, ICON_SIZE, ICON_SIZE);
@@ -209,34 +209,34 @@ public class InventoryRenderer {
 
         if (!visible) return;
 
-        if (button == 0) { // botão esquerdo — drag da janela pelo título
-            if (press && isOnTitle(mx, my)) {
-                dragging    = true;
-                dragOffsetX = mx - winX;
-                dragOffsetY = my - winY;
-            }
-            if (release) dragging = false;
-
-            // Drag de item
+        if (button == 0) { // botão esquerdo
             if (press) {
+                // Inicia drag de item se clicou em um item
                 draggingItemIdx = getItemAt(mx, my, inventory);
                 if (draggingItemIdx >= 0) {
                     Item item = inventory.getItems().get(draggingItemIdx);
                     dragItemX = mx - (winX + 8 + item.invX);
                     dragItemY = my - (winY + TITLE_H + 4 + item.invY);
                 }
+                // Inicia drag da janela se clicou no título OU na área vazia (sem item)
+                else if (isOnWindow(mx, my)) {
+                    dragging    = true;
+                    dragOffsetX = mx - winX;
+                    dragOffsetY = my - winY;
+                }
             }
-            if (release && draggingItemIdx >= 0) {
-                // Atualiza posição do item soltado
-                Item item = (Item) inventory.getItems().get(draggingItemIdx);
-                float newX = mx - dragItemX - (winX + 8);
-                float newY = my - dragItemY - (winY + TITLE_H + 4);
-                // Clampa dentro da área
-                newX = Math.max(0, Math.min(newX, Inventory.AREA_W - ICON_SIZE));
-                newY = Math.max(0, Math.min(newY, Inventory.AREA_H - ICON_SIZE));
-                item.invX = newX;
-                item.invY = newY;
-                draggingItemIdx = -1;
+            if (release) {
+                dragging = false;
+                if (draggingItemIdx >= 0) {
+                    Item item = inventory.getItems().get(draggingItemIdx);
+                    float newX = mx - dragItemX - (winX + 8);
+                    float newY = my - dragItemY - (winY + TITLE_H + 4);
+                    newX = Math.max(0, Math.min(newX, Inventory.AREA_W - ICON_SIZE));
+                    newY = Math.max(0, Math.min(newY, Inventory.AREA_H - ICON_SIZE));
+                    item.invX = newX;
+                    item.invY = newY;
+                    draggingItemIdx = -1;
+                }
             }
         }
     }
@@ -252,6 +252,11 @@ public class InventoryRenderer {
     private boolean isOnTitle(float mx, float my) {
         return mx >= winX && mx <= winX + WIN_W
                 && my >= winY && my <= winY + TITLE_H;
+    }
+
+    private boolean isOnWindow(float mx, float my) {
+        return mx >= winX && mx <= winX + WIN_W
+                && my >= winY && my <= winY + WIN_H;
     }
 
     private int getItemAt(float mx, float my, Inventory inventory) {

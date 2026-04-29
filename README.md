@@ -4,48 +4,44 @@
 
 ---
 
-## What is Aetherlyn?
-
-Aetherlyn is a sandbox MMORPG where players explore a persistent open world, gather resources, survive, and build power — including dark paths like becoming a lich and commanding undead minions.
-
----
-
 ## Current State
 
 ### ✅ Phase 1 — Foundation (complete)
-- Isometric camera with PgUp/PgDown rotation (smooth ease-out interpolation)
+- Isometric camera with PgUp/PgDown rotation (smooth ease-out)
 - Point-and-click movement with raycasting
 - Scroll zoom
-- Fixed timestep game loop (60 TPS logic / uncapped render)
-- Organized package structure (`core`, `camera`, `input`, `rendering`, `debug`, `world`, `entity`)
-- F3 debug panel (FPS, TPS, position, zoom, camera angle, seed)
-- Ctrl+G debug grid overlay
+- Fixed timestep game loop (60 TPS / uncapped render)
+- Package structure: `core`, `camera`, `input`, `rendering`, `debug`, `world`, `entity`
+- F3 debug mode — enables Ctrl+G (grid) and Ctrl+F (creature vision radii)
 
 ### ✅ Phase 2 — World (complete)
-- Terrain grid rendered from `terrain.png` spritesheet (32×32px tiles)
-- Procedural map generation via Perlin Noise + FBM (4 tile types: grass, dirt, stone, water)
-- Island-shaped maps with natural water borders (64×64 tiles)
-- Static objects (stone, bush) with billboard rendering and circular collision
-- Player cannot walk on water or through objects
-- Camera rotation with smooth ease-out (PgUp/PgDown, 45° steps)
+- Terrain from `terrain.png` spritesheet (32×32px tiles: grass, dirt, stone, water)
+- Procedural generation via Perlin Noise + FBM — island-shaped 64×64 map
+- Static objects (stone, bush) with billboard rendering and collision
+- Camera rotation with ease-out (PgUp/PgDown, 45° steps)
 
 ### ✅ Phase 3 — Entities (complete)
-- **Player entity** with position, stats (STR, DEF, HP), inventory (UO-style free placement)
-- **Inventory** — weight limit based on strength, drag items, toggle with `I`
-- **Resource collection** — right-click stone/bush to collect (Stone, Wood items)
-- **Experience system** — XP from kills and collecting resources, level up with stat bonuses
-- **Creature AI** — state machine (IDLE → PATROL → CHASE → ATTACK → FLEE → DEAD)
-- **3 behaviors** — PASSIVE (Deer), NEUTRAL (Villager), HOSTILE (Skeleton, Lich)
-- **Combat** — right-click creature to attack, HP + defense + variable damage
-- **Out-of-combat regeneration** — HP regens after 5s without taking damage
-- **Death & respawn** — 5s respawn timer at map center
-- **Push mechanic** — player pushes creatures instead of getting blocked
-- **Complete HUD:**
-    - HP / Weight / XP bars with numeric values (bottom-left)
-    - Level display
-    - Creature panel showing up to 3 nearby enemies with HP bars + numeric HP (top-right, below minimap)
-    - Minimap 150×150px with tiles, player dot (white), creatures by behavior (red/yellow/green)
-    - Death screen with respawn progress bar
+- Player with HP, STR, DEF, XP, level progression
+- UO-style inventory — weight limit by strength, free item placement, drag items (`I`)
+- Resource collection — right-click stone/bush
+- Creature AI — state machine (IDLE→PATROL→CHASE→ATTACK→FLEE→DEAD)
+- 3 behaviors: PASSIVE (Deer), NEUTRAL (Villager), HOSTILE (Skeleton, Lich)
+- Combat — right-click creature, variable damage, HP + defense
+- Out-of-combat HP regeneration (5s timeout)
+- Death screen with 5s respawn timer
+- Player pushes creatures instead of being blocked
+- **Registry system** — `CreatureRegistry`, `ItemRegistry`, `StaticObjectRegistry`:
+  adding new types requires only one new entry per registry, no other file changes
+- **Complete HUD (bottom-left):**
+  - HP bar (pulses red in combat) with numeric HP
+  - Weight bar with numeric values
+  - XP bar with level display
+  - Creature panel (top-right, below minimap) — up to 3 nearest creatures with HP bars + numeric HP
+  - Minimap 150×150px — tiles + player (white) + creatures by behavior (red/yellow/green)
+  - Death screen with respawn progress bar
+- **Debug mode (F3):**
+  - Ctrl+G — debug grid overlay
+  - Ctrl+F — creature vision and attack radii (color-coded by behavior)
 
 ### 🔲 Phase 4 — Server
 - KryoNet multiplayer
@@ -68,7 +64,6 @@ Aetherlyn is a sandbox MMORPG where players explore a persistent open world, gat
 | Math | JOML |
 | Font Rendering | STB TrueType |
 | Procedural Gen | Perlin Noise (custom) |
-| 2D Rendering | LibGDX (planned) |
 | Networking | KryoNet (planned) |
 | Database | SQLite (planned) |
 | Build | Maven |
@@ -80,42 +75,23 @@ Aetherlyn is a sandbox MMORPG where players explore a persistent open world, gat
 ```
 src/main/java/com/angelo/mmorpg/
 ├── Game.java
-├── camera/
-│   └── Camera.java
-├── core/
-│   ├── Window.java
-│   └── ResourceLoader.java
-├── debug/
-│   ├── DebugState.java
-│   ├── DebugInfo.java
-│   └── DebugRenderer.java
+├── camera/Camera.java
+├── core/{Window, ResourceLoader}.java
+├── debug/{DebugState, DebugInfo, DebugRenderer}.java
 ├── entity/
-│   ├── Player.java
-│   ├── PlayerStats.java
-│   ├── ExperienceSystem.java
-│   ├── Inventory.java
-│   ├── Item.java
-│   ├── ItemType.java
-│   ├── Creature.java
-│   ├── CreatureType.java
-│   ├── CreatureBehavior.java
-│   ├── CreatureState.java
-│   ├── CreatureManager.java
+│   ├── {Player, PlayerStats, ExperienceSystem}.java
+│   ├── {Inventory, Item, ItemDef, ItemRegistry}.java
+│   ├── {Creature, CreatureDef, CreatureRegistry}.java
+│   ├── {CreatureBehavior, CreatureState, CreatureManager}.java
 │   └── CombatSystem.java
-├── input/
-│   └── InputHandler.java
+├── input/InputHandler.java
 ├── rendering/
-│   ├── Renderer.java
-│   ├── TerrainRenderer.java
-│   ├── ObjectRenderer.java
-│   ├── CreatureRenderer.java
-│   ├── GridRenderer.java
-│   ├── HudRenderer.java
-│   └── InventoryRenderer.java
+│   ├── {Renderer, TerrainRenderer, ObjectRenderer}.java
+│   ├── {CreatureRenderer, VisionRenderer, GridRenderer}.java
+│   ├── {HudRenderer, InventoryRenderer, DebugRenderer}.java (wait, DebugRenderer is in debug/)
 └── world/
-    ├── WorldMap.java
-    ├── PerlinNoise.java
-    └── StaticObject.java
+    ├── {WorldMap, PerlinNoise}.java
+    ├── {StaticObject, StaticObjectDef, StaticObjectRegistry}.java
 ```
 
 ---
@@ -129,9 +105,23 @@ src/main/java/com/angelo/mmorpg/
 | PgUp / PgDown | Rotate camera 45° |
 | Scroll | Zoom in/out |
 | I | Open/close inventory |
-| F3 | Toggle debug panel |
-| Ctrl+G | Toggle debug grid |
+| F3 | Toggle debug mode |
+| Ctrl+G | Grid overlay (debug mode only) |
+| Ctrl+F | Creature vision radii (debug mode only) |
 | ESC | Quit |
+
+---
+
+## Adding New Content
+
+### New creature
+Add one entry to `CreatureRegistry.java` — nothing else changes.
+
+### New item
+Add one entry to `ItemRegistry.java`. If it drops from a world object, update `StaticObjectRegistry.java`.
+
+### New world object
+Add one entry to `StaticObjectRegistry.java` and configure its spawn in `WorldMap.generate()`.
 
 ---
 
@@ -144,7 +134,7 @@ mvn clean install
 java -jar target/Aetherlyn-1.0-SNAPSHOT.jar
 ```
 
-Linux dependencies:
+Linux:
 ```bash
 sudo apt install libgl1-mesa-dev libglfw3-dev libopenal-dev
 ```
@@ -152,6 +142,5 @@ sudo apt install libgl1-mesa-dev libglfw3-dev libopenal-dev
 ---
 
 ## Inspiration
-
-- [Haven & Hearth](https://www.havenandhearth.com/) — persistent open world, survival and crafting depth
-- *Overlord* — dark fantasy theme, commanding minions, morality through power
+- [Haven & Hearth](https://www.havenandhearth.com/) — persistent world, survival depth
+- *Overlord* — dark fantasy, commanding minions, morality through power

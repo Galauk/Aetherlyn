@@ -28,7 +28,7 @@ public final class CreatureRegistry {
 
         register(new CreatureDef(
                 "lich", "Lich",
-                80, 8, 10, 20, 1.5f, 8.0f, 2.0f,
+                80, 8, 10, 20, 1.5f, 6.0f, 2.0f,
                 CreatureBehavior.HOSTILE,
                 "/assets/lich.png", 120
         ));
