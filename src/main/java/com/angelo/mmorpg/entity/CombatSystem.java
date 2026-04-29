@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Resolve combate e concede XP ao matar criaturas.
+ * Resolve combate e concede XP usando CreatureRegistry e ItemRegistry.
  */
 public class CombatSystem {
 
@@ -17,36 +17,27 @@ public class CombatSystem {
     public int playerAttack(Player player, Creature target) {
         if (target.isDead()) return 0;
 
-        int str  = player.getStats().getStrength();
-        int base = str / 2;
-        int dmg  = Math.max(1, base + rng.nextInt(5) - 2 - target.getType().defense);
+        int str = player.getStats().getStrength();
+        int dmg = Math.max(1, str/2 + rng.nextInt(5) - 2 - target.getDef().defense);
 
         target.takeDamage(dmg);
-        addLog("You hit " + target.getType().name + " for " + dmg + " dmg.");
+        addLog("You hit " + target.getDef().name + " for " + dmg + " dmg.");
 
         if (target.isDead()) {
-            addLog(target.getType().name + " has been slain!");
-            int xp = switch (target.getType()) {
-                case SKELETON -> ExperienceSystem.XP_KILL_SKELETON;
-                case LICH     -> ExperienceSystem.XP_KILL_LICH;
-                case VILLAGER -> ExperienceSystem.XP_KILL_VILLAGER;
-                case DEER     -> ExperienceSystem.XP_KILL_DEER;
-            };
+            int xp = target.getDef().xpReward;
             player.getExperience().addXp(xp);
-            addLog("+" + xp + " XP");
+            addLog(target.getDef().name + " slain! +" + xp + " XP");
         }
 
         return dmg;
     }
 
     public int creatureAttack(Creature attacker, Player target) {
-        CreatureType t   = attacker.getType();
-        int          dmg = t.damageMin + rng.nextInt(Math.max(1, t.damageMax - t.damageMin + 1));
+        CreatureDef d   = attacker.getDef();
+        int         dmg = d.damageMin + rng.nextInt(Math.max(1, d.damageMax - d.damageMin + 1));
         dmg = Math.max(1, dmg - target.getStats().getDefense());
-
         target.getStats().takeDamage(dmg);
-        addLog(t.name + " hits you for " + dmg + " dmg.");
-
+        addLog(d.name + " hits you for " + dmg + " dmg.");
         if (target.getStats().isDead()) addLog("You have been slain!");
         return dmg;
     }

@@ -2,22 +2,20 @@ package com.angelo.mmorpg.entity;
 
 /**
  * Instância de um item no inventário.
- * Tem posição livre (px, py) dentro da janela do inventário, estilo Ultima Online.
+ * Usa ItemDef (do ItemRegistry) para seus atributos.
  */
 public class Item {
 
-    public final ItemType type;
-
-    // Posição do item dentro da janela do inventário (pixels)
+    public final ItemDef def;
     public float invX;
     public float invY;
 
-    public Item(ItemType type, float invX, float invY) {
-        this.type = type;
+    public Item(ItemDef def, float invX, float invY) {
+        this.def  = def;
         this.invX = invX;
         this.invY = invY;
     }
 
-    public float getWeight() { return type.weight; }
-    public String getName()  { return type.name; }
+    public float  getWeight() { return def.weight; }
+    public String getName()   { return def.name; }
 }

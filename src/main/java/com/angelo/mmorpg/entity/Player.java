@@ -7,10 +7,10 @@ public class Player {
     public static final float COLLISION_RADIUS = 0.3f;
     public static final float INTERACT_RADIUS  = 1.8f;
 
-    private Vector3f        position;
-    private Vector3f        target;
-    private PlayerStats     stats;
-    private Inventory       inventory;
+    private Vector3f         position;
+    private Vector3f         target;
+    private PlayerStats      stats;
+    private Inventory        inventory;
     private ExperienceSystem experience;
 
     public Player(float startX, float startZ) {
@@ -22,28 +22,23 @@ public class Player {
     }
 
     public boolean canInteractWith(float worldX, float worldZ) {
-        float dx = worldX - position.x;
-        float dz = worldZ - position.z;
-        return Math.sqrt(dx * dx + dz * dz) <= INTERACT_RADIUS;
+        float dx=worldX-position.x, dz=worldZ-position.z;
+        return Math.sqrt(dx*dx+dz*dz) <= INTERACT_RADIUS;
     }
 
-    public boolean collect(ItemType type) {
-        boolean ok = inventory.addItem(type);
-        if (ok) {
-            int xp = switch (type) {
-                case STONE -> ExperienceSystem.XP_COLLECT_STONE;
-                case WOOD  -> ExperienceSystem.XP_COLLECT_WOOD;
-            };
-            experience.addXp(xp);
-        }
+    /** Tenta coletar um item pelo id do ItemRegistry. */
+    public boolean collect(String itemId) {
+        ItemDef def = ItemRegistry.get(itemId);
+        boolean ok  = inventory.addItem(def);
+        if (ok) experience.addXp(def.xpOnCollect);
         return ok;
     }
 
-    public Vector3f        getPosition()   { return position; }
-    public Vector3f        getTarget()     { return target; }
-    public PlayerStats     getStats()      { return stats; }
-    public Inventory       getInventory()  { return inventory; }
-    public ExperienceSystem getExperience(){ return experience; }
+    public Vector3f         getPosition()   { return position; }
+    public Vector3f         getTarget()     { return target; }
+    public PlayerStats      getStats()      { return stats; }
+    public Inventory        getInventory()  { return inventory; }
+    public ExperienceSystem getExperience() { return experience; }
 
     public void setPosition(Vector3f pos) { position.set(pos); }
     public void setTarget(Vector3f t)     { target.set(t); }

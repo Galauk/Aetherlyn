@@ -20,7 +20,7 @@ public class Game {
     private static final int    WIDTH    = 800;
     private static final int    HEIGHT   = 600;
     private static final double TPS      = 60.0;
-    private static final double TICK_TIME= 1.0 / TPS;
+    private static final double TICK_TIME= 1.0/TPS;
     private static final int    MAX_TICKS= 5;
     private static final float  PLAYER_SPEED    = 3.0f;
     private static final float  ATTACK_COOLDOWN = 0.8f;
@@ -33,6 +33,7 @@ public class Game {
     private TerrainRenderer   terrainRenderer;
     private ObjectRenderer    objectRenderer;
     private CreatureRenderer  creatureRenderer;
+    private VisionRenderer    visionRenderer;
     private GridRenderer      gridRenderer;
     private InventoryRenderer inventoryRenderer;
     private HudRenderer       hudRenderer;
@@ -59,7 +60,7 @@ public class Game {
         window.init();
 
         worldMap          = new WorldMap();
-        player            = new Player(WorldMap.WIDTH / 2f, WorldMap.HEIGHT / 2f);
+        player            = new Player(WorldMap.WIDTH/2f, WorldMap.HEIGHT/2f);
         combatSystem      = new CombatSystem();
         creatureManager   = new CreatureManager();
         debugState        = new DebugState();
@@ -69,13 +70,13 @@ public class Game {
         hudRenderer       = new HudRenderer(WIDTH, HEIGHT);
 
         input = new InputHandler(window.getHandle(), camera, debugState,
-                inventoryRenderer, hudRenderer,
-                player.getInventory(), WIDTH, HEIGHT);
+                inventoryRenderer, player.getInventory(), WIDTH, HEIGHT);
 
         renderer         = new Renderer();
         terrainRenderer  = new TerrainRenderer();
         objectRenderer   = new ObjectRenderer();
         creatureRenderer = new CreatureRenderer();
+        visionRenderer   = new VisionRenderer();
         gridRenderer     = new GridRenderer();
         debugRenderer    = new DebugRenderer(WIDTH, HEIGHT);
 
@@ -84,15 +85,15 @@ public class Game {
         terrainRenderer.init(worldMap);
         objectRenderer.init();
         creatureRenderer.init();
+        visionRenderer.init();
         gridRenderer.init();
         debugRenderer.init();
         inventoryRenderer.init();
         hudRenderer.init();
 
-        // Notificação de level up no log de combate
         player.getExperience().setOnLevelUp(() ->
-                combatSystem.getLog().add(0, "*** LEVEL UP! Level " +
-                        player.getExperience().getLevel() + " ***")
+                combatSystem.getLog().add(0, "*** LEVEL UP! Level "
+                        + player.getExperience().getLevel() + " ***")
         );
 
         creatureManager.spawnAll(worldMap);
@@ -100,18 +101,15 @@ public class Game {
     }
 
     private void loop() {
-        double previous = glfwGetTime(), accumulator = 0.0;
+        double previous=glfwGetTime(), accumulator=0.0;
         while (!window.shouldClose()) {
-            double current = glfwGetTime();
-            double elapsed = Math.min(current - previous, MAX_TICKS * TICK_TIME);
-            previous = current; accumulator += elapsed;
+            double current=glfwGetTime();
+            double elapsed=Math.min(current-previous, MAX_TICKS*TICK_TIME);
+            previous=current; accumulator+=elapsed;
 
-            while (accumulator >= TICK_TIME) {
-                tick((float) TICK_TIME);
-                accumulator -= TICK_TIME; tickCount++;
-            }
+            while (accumulator>=TICK_TIME) { tick((float)TICK_TIME); accumulator-=TICK_TIME; tickCount++; }
 
-            tpsTimer += (float)elapsed;
+            tpsTimer+=(float)elapsed;
             if (tpsTimer>=0.5f){tps=tickCount/tpsTimer;tpsTimer=0;tickCount=0;}
             frameCount++;fpsTimer+=(float)elapsed;
             if (fpsTimer>=0.5f){fps=frameCount/fpsTimer;fpsTimer=0;frameCount=0;}
@@ -126,121 +124,115 @@ public class Game {
         player.getStats().update(delta);
 
         if (player.getStats().isDead()) {
-            if (!isDead) { isDead = true; deathTimer = DEATH_RESPAWN; }
-            deathTimer -= delta;
-            if (deathTimer <= 0) respawn();
+            if (!isDead) { isDead=true; deathTimer=DEATH_RESPAWN; }
+            deathTimer-=delta;
+            if (deathTimer<=0) respawn();
             camera.update(delta);
             camera.setTarget(player.getPosition());
             return;
         }
-        isDead = false;
-        playerAttackTimer = Math.max(0, playerAttackTimer - delta);
+        isDead=false;
+        playerAttackTimer=Math.max(0,playerAttackTimer-delta);
 
-        // Movimento
-        Vector3f clickTarget = input.consumeMoveTarget();
-        if (clickTarget != null && canMoveTo(clickTarget)) {
-            player.setTarget(clickTarget);
-            lastClick = new Vector3f(clickTarget);
-        }
+        Vector3f click=input.consumeMoveTarget();
+        if (click!=null && canMoveTo(click)) { player.setTarget(click); lastClick=new Vector3f(click); }
 
-        // Interação
-        Vector3f interactTarget = input.consumeInteractTarget();
-        if (interactTarget != null) {
-            Creature target = creatureManager.getCreatureAt(
-                    interactTarget.x, interactTarget.z, 1.5f);
-            if (target != null
-                    && player.canInteractWith(target.getPosition().x, target.getPosition().z)
-                    && playerAttackTimer <= 0) {
-                combatSystem.playerAttack(player, target);
-                playerAttackTimer = ATTACK_COOLDOWN;
+        Vector3f interact=input.consumeInteractTarget();
+        if (interact!=null) {
+            Creature target=creatureManager.getCreatureAt(interact.x,interact.z,1.5f);
+            if (target!=null && player.canInteractWith(target.getPosition().x,target.getPosition().z)
+                    && playerAttackTimer<=0) {
+                combatSystem.playerAttack(player,target);
+                playerAttackTimer=ATTACK_COOLDOWN;
             } else {
-                tryCollect(interactTarget.x, interactTarget.z);
+                tryCollect(interact.x,interact.z);
             }
         }
 
-        creatureManager.update(delta, player, worldMap, combatSystem);
+        creatureManager.update(delta,player,worldMap,combatSystem);
         movePlayer(delta);
         camera.update(delta);
         camera.setTarget(player.getPosition());
-        debugInfo.update(fps, tps, player.getPosition(), lastClick,
-                camera.getZoom(), camera.getYaw(), worldMap.getSeed());
+        debugInfo.update(fps,tps,player.getPosition(),lastClick,
+                camera.getZoom(),camera.getYaw(),worldMap.getSeed());
     }
 
     private void respawn() {
-        Vector3f c = new Vector3f(WorldMap.WIDTH/2f, 0, WorldMap.HEIGHT/2f);
+        Vector3f c=new Vector3f(WorldMap.WIDTH/2f,0,WorldMap.HEIGHT/2f);
         player.setPosition(c); player.setTarget(c);
-        player.getStats().respawn();
-        isDead = false;
+        player.getStats().respawn(); isDead=false;
     }
 
-    private void tryCollect(float wx, float wz) {
+    private void tryCollect(float wx,float wz) {
         for (StaticObject obj : worldMap.getObjects()) {
             if (obj.isCollected()) continue;
-            float dx=wx-obj.worldX, dz=wz-obj.worldZ;
+            float dx=wx-obj.worldX,dz=wz-obj.worldZ;
             if (Math.sqrt(dx*dx+dz*dz)<1.0f
-                    && player.canInteractWith(obj.worldX, obj.worldZ)
-                    && player.collect(obj.type.drop)) {
-                obj.collect();
-                worldMap.clearObject(obj.tileX, obj.tileZ);
-                break;
+                    && player.canInteractWith(obj.worldX,obj.worldZ)
+                    && obj.def.isCollectable()
+                    && player.collect(obj.def.dropItemId)) {
+                obj.collect(); worldMap.clearObject(obj.tileX,obj.tileZ); break;
             }
         }
     }
 
     private void movePlayer(float delta) {
-        Vector3f pos  = player.getPosition();
-        Vector3f diff = new Vector3f(player.getTarget()).sub(pos);
-        float    dist = diff.length();
-        if (dist < 0.05f) return;
+        Vector3f pos=player.getPosition();
+        Vector3f diff=new Vector3f(player.getTarget()).sub(pos);
+        float dist=diff.length();
+        if (dist<0.05f) return;
 
-        float    step = PLAYER_SPEED * delta;
-        Vector3f dir  = new Vector3f(diff).normalize();
-        Vector3f next = new Vector3f(pos).add(new Vector3f(dir).mul(Math.min(step,dist)));
+        float step=PLAYER_SPEED*delta;
+        Vector3f dir=new Vector3f(diff).normalize();
+        Vector3f next=new Vector3f(pos).add(new Vector3f(dir).mul(Math.min(step,dist)));
 
-        if      (canMoveTo(next))                              { pushCreatures(dir); player.setPosition(next); }
-        else if (canMoveTo(new Vector3f(next.x,0,pos.z)))     { pushCreatures(dir); player.setPosition(new Vector3f(next.x,0,pos.z)); }
-        else if (canMoveTo(new Vector3f(pos.x, 0,next.z)))    { pushCreatures(dir); player.setPosition(new Vector3f(pos.x,0,next.z)); }
+        if      (canMoveTo(next))                            { pushCreatures(dir); player.setPosition(next); }
+        else if (canMoveTo(new Vector3f(next.x,0,pos.z)))   { pushCreatures(dir); player.setPosition(new Vector3f(next.x,0,pos.z)); }
+        else if (canMoveTo(new Vector3f(pos.x,0,next.z)))   { pushCreatures(dir); player.setPosition(new Vector3f(pos.x,0,next.z)); }
     }
 
     private void pushCreatures(Vector3f dir) {
-        float r = Player.COLLISION_RADIUS + 0.6f;
-        Vector3f pos = player.getPosition();
+        float r=Player.COLLISION_RADIUS+0.6f;
+        Vector3f pos=player.getPosition();
         for (Creature c : creatureManager.getCreatures()) {
             if (c.isDead()) continue;
-            float dx=c.getPosition().x-pos.x, dz=c.getPosition().z-pos.z;
-            if (Math.sqrt(dx*dx+dz*dz) < r) {
-                Vector3f pushed = new Vector3f(c.getPosition()).add(new Vector3f(dir).mul(0.15f));
-                if (worldMap.isWalkable(pushed.x, pushed.z)) c.getPosition().set(pushed);
+            float dx=c.getPosition().x-pos.x,dz=c.getPosition().z-pos.z;
+            if (Math.sqrt(dx*dx+dz*dz)<r) {
+                Vector3f pushed=new Vector3f(c.getPosition()).add(new Vector3f(dir).mul(0.15f));
+                if (worldMap.isWalkable(pushed.x,pushed.z)) c.getPosition().set(pushed);
             }
         }
     }
 
     private boolean canMoveTo(Vector3f pos) {
-        float r = Player.COLLISION_RADIUS;
-        return worldMap.isWalkable(pos.x-r, pos.z-r)
-                && worldMap.isWalkable(pos.x+r, pos.z-r)
-                && worldMap.isWalkable(pos.x-r, pos.z+r)
-                && worldMap.isWalkable(pos.x+r, pos.z+r)
-                && !worldMap.collidesWithObject(pos.x, pos.z, r);
+        float r=Player.COLLISION_RADIUS;
+        return worldMap.isWalkable(pos.x-r,pos.z-r) && worldMap.isWalkable(pos.x+r,pos.z-r)
+                && worldMap.isWalkable(pos.x-r,pos.z+r) && worldMap.isWalkable(pos.x+r,pos.z+r)
+                && !worldMap.collidesWithObject(pos.x,pos.z,r);
     }
 
     private void render() {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
         terrainRenderer.render(camera);
-        objectRenderer.render(camera, worldMap);
-        creatureRenderer.render(camera, creatureManager);
-        if (!isDead) renderer.render(camera, player.getPosition());
-        if (debugState.isGridVisible()) gridRenderer.render(camera);
+        objectRenderer.render(camera,worldMap);
+        creatureRenderer.render(camera,creatureManager);
+        if (!isDead) renderer.render(camera,player.getPosition());
 
-        hudRenderer.render(player, isDead, deathTimer, worldMap, creatureManager);
+        // Debug overlays (só em debug mode)
+        if (debugState.isGridVisible())   gridRenderer.render(camera);
+        if (debugState.isVisionVisible()) visionRenderer.render(camera,creatureManager);
+
+        // UI
+        hudRenderer.render(player,isDead,deathTimer,worldMap,creatureManager);
         inventoryRenderer.render(player.getInventory());
         if (debugState.isDebugPanelVisible()) debugRenderer.render(debugInfo);
     }
 
     private void cleanup() {
         renderer.cleanup(); terrainRenderer.cleanup(); objectRenderer.cleanup();
-        creatureRenderer.cleanup(); gridRenderer.cleanup(); hudRenderer.cleanup();
-        inventoryRenderer.cleanup(); debugRenderer.cleanup(); window.destroy();
+        creatureRenderer.cleanup(); visionRenderer.cleanup(); gridRenderer.cleanup();
+        hudRenderer.cleanup(); inventoryRenderer.cleanup(); debugRenderer.cleanup();
+        window.destroy();
     }
 
     public static void main(String[] args) { new Game().run(); }

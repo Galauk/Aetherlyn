@@ -6,21 +6,19 @@ import org.joml.Vector3f;
 import java.util.Random;
 
 /**
- * Entidade de criatura com máquina de estados de IA.
- * Mantém distância mínima do player para não sobrepor visualmente.
+ * Instância de uma criatura no mundo.
+ * Usa CreatureDef (do CreatureRegistry) para seus atributos base.
  */
 public class Creature {
 
-    // Distância mínima que a criatura mantém do player ao atacar
-    private static final float MIN_DISTANCE     = 0.9f;
-
+    private static final float MIN_DISTANCE      = 0.9f;
     private static final float PATROL_CHANGE_TIME = 3.0f;
     private static final float IDLE_TIME          = 1.5f;
     private static final float ATTACK_COOLDOWN    = 1.5f;
 
-    private final CreatureType  type;
-    private final Vector3f      position;
-    private final Vector3f      patrolTarget;
+    private final CreatureDef  def;
+    private final Vector3f     position;
+    private final Vector3f     patrolTarget;
 
     private CreatureState state      = CreatureState.IDLE;
     private int           hp;
@@ -34,180 +32,116 @@ public class Creature {
     private final long   id;
     private static long  idCounter = 0;
 
-    public Creature(CreatureType type, float x, float z) {
-        this.type         = type;
+    public Creature(CreatureDef def, float x, float z) {
+        this.def          = def;
         this.position     = new Vector3f(x, 0f, z);
         this.patrolTarget = new Vector3f(x, 0f, z);
-        this.hp           = type.maxHp;
+        this.hp           = def.maxHp;
         this.id           = idCounter++;
     }
 
     public void update(float delta, Player player, WorldMap worldMap, CombatSystem combat) {
         if (state == CreatureState.DEAD) return;
 
-        float distToPlayer = distanceTo(player.getPosition());
+        float dist = distanceTo(player.getPosition());
         attackTimer = Math.max(0, attackTimer - delta);
 
         switch (state) {
-            case IDLE   -> updateIdle(delta, distToPlayer);
-            case PATROL -> updatePatrol(delta, distToPlayer, player, worldMap);
-            case CHASE  -> updateChase(delta, distToPlayer, player, worldMap);
-            case ATTACK -> updateAttack(delta, distToPlayer, player, combat);
-            case FLEE   -> updateFlee(delta, distToPlayer, player, worldMap);
+            case IDLE   -> updateIdle(delta, dist);
+            case PATROL -> updatePatrol(delta, dist, player, worldMap);
+            case CHASE  -> updateChase(delta, dist, player, worldMap);
+            case ATTACK -> updateAttack(delta, dist, player, combat);
+            case FLEE   -> updateFlee(delta, dist, player, worldMap);
             default     -> {}
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Estados
-    // -------------------------------------------------------------------------
-
-    private void updateIdle(float delta, float distToPlayer) {
+    private void updateIdle(float delta, float dist) {
         idleTimer += delta;
-        if (idleTimer >= IDLE_TIME) {
-            idleTimer = 0;
-            state     = CreatureState.PATROL;
-            pickPatrolTarget();
-        }
-        checkAggro(distToPlayer);
+        if (idleTimer >= IDLE_TIME) { idleTimer = 0; state = CreatureState.PATROL; pickPatrolTarget(); }
+        checkAggro(dist);
     }
 
-    private void updatePatrol(float delta, float distToPlayer, Player player, WorldMap worldMap) {
+    private void updatePatrol(float delta, float dist, Player player, WorldMap worldMap) {
         patrolTimer += delta;
-        if (patrolTimer >= PATROL_CHANGE_TIME) {
-            patrolTimer = 0;
-            pickPatrolTarget();
-        }
-        moveToward(patrolTarget, type.speed * 0.5f, delta, worldMap);
+        if (patrolTimer >= PATROL_CHANGE_TIME) { patrolTimer = 0; pickPatrolTarget(); }
+        moveToward(patrolTarget, def.speed * 0.5f, delta, worldMap);
         if (distanceTo(patrolTarget) < 0.3f) state = CreatureState.IDLE;
-        checkAggro(distToPlayer);
+        checkAggro(dist);
     }
 
-    private void updateChase(float delta, float distToPlayer, Player player, WorldMap worldMap) {
-        if (distToPlayer <= type.attackRadius) {
-            state = CreatureState.ATTACK;
-            return;
-        }
-
-        // Só move se estiver além da distância mínima
-        if (distToPlayer > MIN_DISTANCE) {
-            moveToward(player.getPosition(), type.speed, delta, worldMap);
-        }
-
-        if (distToPlayer > type.visionRadius * 1.5f) {
-            state      = CreatureState.PATROL;
-            aggressive = false;
-        }
+    private void updateChase(float delta, float dist, Player player, WorldMap worldMap) {
+        if (dist <= def.attackRadius) { state = CreatureState.ATTACK; return; }
+        if (dist > MIN_DISTANCE) moveToward(player.getPosition(), def.speed, delta, worldMap);
+        if (dist > def.visionRadius * 1.5f) { state = CreatureState.PATROL; aggressive = false; }
     }
 
-    private void updateAttack(float delta, float distToPlayer, Player player, CombatSystem combat) {
-        // Se player saiu do raio de ataque, volta a perseguir
-        if (distToPlayer > type.attackRadius + 0.5f) {
-            state = CreatureState.CHASE;
-            return;
-        }
-
-        // Mantém distância mínima — empurra criatura para trás se muito perto
-        if (distToPlayer < MIN_DISTANCE) {
+    private void updateAttack(float delta, float dist, Player player, CombatSystem combat) {
+        if (dist > def.attackRadius + 0.5f) { state = CreatureState.CHASE; return; }
+        if (dist < MIN_DISTANCE) {
             Vector3f away = new Vector3f(position).sub(player.getPosition());
-            if (away.length() > 0.001f) {
-                away.normalize().mul(MIN_DISTANCE - distToPlayer);
-                position.add(away);
-            }
+            if (away.length() > 0.001f) position.add(away.normalize().mul(MIN_DISTANCE - dist));
         }
-
-        // Ataca com cooldown
-        if (attackTimer <= 0 && type.damageMax > 0) {
+        if (attackTimer <= 0 && def.damageMax > 0) {
             combat.creatureAttack(this, player);
             attackTimer = ATTACK_COOLDOWN;
         }
     }
 
-    private void updateFlee(float delta, float distToPlayer, Player player, WorldMap worldMap) {
-        if (distToPlayer > type.visionRadius) {
-            state = CreatureState.PATROL;
-            return;
-        }
-        Vector3f away      = new Vector3f(position).sub(player.getPosition());
+    private void updateFlee(float delta, float dist, Player player, WorldMap worldMap) {
+        if (dist > def.visionRadius) { state = CreatureState.PATROL; return; }
+        Vector3f away = new Vector3f(position).sub(player.getPosition());
         if (away.length() > 0.001f) away.normalize();
-        Vector3f fleeTarget = new Vector3f(position).add(new Vector3f(away).mul(3f));
-        moveToward(fleeTarget, type.speed * 1.2f, delta, worldMap);
+        moveToward(new Vector3f(position).add(new Vector3f(away).mul(3f)), def.speed * 1.2f, delta, worldMap);
     }
 
-    private void checkAggro(float distToPlayer) {
+    private void checkAggro(float dist) {
         if (state == CreatureState.DEAD) return;
-
-        boolean shouldAggro = switch (type.behavior) {
-            case HOSTILE -> distToPlayer <= type.visionRadius;
-            case NEUTRAL -> aggressive && distToPlayer <= type.visionRadius * 1.5f;
+        boolean aggro = switch (def.behavior) {
+            case HOSTILE -> dist <= def.visionRadius;
+            case NEUTRAL -> aggressive && dist <= def.visionRadius * 1.5f;
             case PASSIVE -> false;
         };
-
-        boolean shouldFlee = type.behavior == CreatureBehavior.PASSIVE
-                && distToPlayer <= type.visionRadius * 0.5f;
-
-        if (shouldAggro) state = CreatureState.CHASE;
-        if (shouldFlee)  state = CreatureState.FLEE;
+        boolean flee = def.behavior == CreatureBehavior.PASSIVE && dist <= def.visionRadius * 0.5f;
+        if (aggro) state = CreatureState.CHASE;
+        if (flee)  state = CreatureState.FLEE;
     }
-
-    // -------------------------------------------------------------------------
-    // Movimento
-    // -------------------------------------------------------------------------
 
     private void moveToward(Vector3f target, float speed, float delta, WorldMap worldMap) {
         Vector3f diff = new Vector3f(target).sub(position);
         if (diff.length() < 0.05f) return;
-
         Vector3f dir  = new Vector3f(diff).normalize();
         Vector3f next = new Vector3f(position).add(new Vector3f(dir).mul(speed * delta));
-
-        if (worldMap.isWalkable(next.x, next.z))           { position.set(next); return; }
-        Vector3f nx = new Vector3f(next.x, 0, position.z);
-        if (worldMap.isWalkable(nx.x, nx.z))               { position.set(nx);   return; }
-        Vector3f nz = new Vector3f(position.x, 0, next.z);
-        if (worldMap.isWalkable(nz.x, nz.z))               { position.set(nz);   return; }
-        pickPatrolTarget();
+        if      (worldMap.isWalkable(next.x, next.z))                         position.set(next);
+        else if (worldMap.isWalkable(next.x, position.z))                     position.x = next.x;
+        else if (worldMap.isWalkable(position.x, next.z))                     position.z = next.z;
+        else    pickPatrolTarget();
     }
 
     private void pickPatrolTarget() {
-        float range = 4.0f;
+        float r = 4.0f;
         patrolTarget.set(
-                position.x + (rng.nextFloat() * range * 2 - range),
-                0f,
-                position.z + (rng.nextFloat() * range * 2 - range)
+                position.x + (rng.nextFloat() * r * 2 - r), 0f,
+                position.z + (rng.nextFloat() * r * 2 - r)
         );
     }
 
-    // -------------------------------------------------------------------------
-    // Combate
-    // -------------------------------------------------------------------------
-
     public void takeDamage(int amount) {
         hp -= amount;
-        if (hp <= 0) {
-            hp    = 0;
-            state = CreatureState.DEAD;
-        } else {
-            if (type.behavior == CreatureBehavior.NEUTRAL) aggressive = true;
-            state = CreatureState.CHASE;
-        }
+        if (hp <= 0) { hp = 0; state = CreatureState.DEAD; }
+        else { if (def.behavior == CreatureBehavior.NEUTRAL) aggressive = true; state = CreatureState.CHASE; }
     }
 
-    // -------------------------------------------------------------------------
-    // Getters
-    // -------------------------------------------------------------------------
-
-    public CreatureType  getType()     { return type; }
+    public CreatureDef   getDef()      { return def; }
     public Vector3f      getPosition() { return position; }
     public CreatureState getState()    { return state; }
     public int           getHp()       { return hp; }
-    public int           getMaxHp()    { return type.maxHp; }
+    public int           getMaxHp()    { return def.maxHp; }
     public boolean       isDead()      { return state == CreatureState.DEAD; }
     public long          getId()       { return id; }
 
     public float distanceTo(Vector3f other) {
-        float dx = position.x - other.x;
-        float dz = position.z - other.z;
-        return (float) Math.sqrt(dx * dx + dz * dz);
+        float dx = position.x - other.x, dz = position.z - other.z;
+        return (float) Math.sqrt(dx*dx + dz*dz);
     }
 }
